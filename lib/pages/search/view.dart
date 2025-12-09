@@ -135,7 +135,7 @@ class _SearchPageState extends State<SearchPage> {
                         ),
                         child: Text.rich(
                           TextSpan(
-                            children: Em.regTitle(item.textRich)
+                            children: HtmlEmphasisParser.regTitle(item.textRich)
                                 .map(
                                   (e) => TextSpan(
                                     text: e.text,

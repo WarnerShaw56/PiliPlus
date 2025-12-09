@@ -79,7 +79,7 @@ class SearchVideoItemModel extends BaseVideoItemModel {
     arcurl = json['arcurl'];
     aid = json['aid'];
     bvid = json['bvid'];
-    titleList = Em.regTitle(json['title']);
+    titleList = HtmlEmphasisParser.regTitle(json['title']);
     title = titleList!.map((i) => i.text).join();
     desc = json['description'];
     cover = (json['pic'] as String?)?.http2https;
@@ -257,7 +257,7 @@ class SearchLiveItemModel {
     face = json['uface'];
     userCover = json['user_cover'];
     type = json['type'];
-    title = Em.regTitle(json['title']);
+    title = HtmlEmphasisParser.regTitle(json['title']);
     cover = json['cover'];
     pic = json['cover'];
     online = json['online'];
@@ -265,7 +265,7 @@ class SearchLiveItemModel {
     rankScore = json['rank_score'];
     roomid = json['roomid'];
     attentions = json['attentions'];
-    cateName = Em.regCate(json['cate_name']);
+    cateName = HtmlEmphasisParser.regCate(json['cate_name']);
   }
 }
 
@@ -341,7 +341,7 @@ class SearchPgcItemModel {
   SearchPgcItemModel.fromJson(Map<String, dynamic> json) {
     type = json['type'];
     mediaId = json['media_id'];
-    title = Em.regTitle(json['title']);
+    title = HtmlEmphasisParser.regTitle(json['title']);
     orgTitle = json['org_title'];
     mediaType = json['media_type'];
     cv = json['cv'];
@@ -421,7 +421,7 @@ class SearchArticleItemModel {
   SearchArticleItemModel.fromJson(Map<String, dynamic> json) {
     pubTime = json['pub_time'];
     like = json['like'];
-    title = Em.regTitle(json['title']);
+    title = HtmlEmphasisParser.regTitle(json['title']);
     subTitle = title.map((e) => e.text).join();
     rankOffset = json['rank_offset'];
     mid = json['mid'];

@@ -228,20 +228,20 @@ class MyApp extends StatelessWidget {
       return;
     }
 
-    final plCtr = PlPlayerController.instance;
-    if (plCtr != null) {
-      if (plCtr.isFullScreen.value) {
-        plCtr
+    final playerController = PlPlayerController.instance;
+    if (playerController != null) {
+      if (playerController.isFullScreen.value) {
+        playerController
           ..triggerFullScreen(status: false)
           ..controlsLock.value = false
           ..showControls.value = false;
         return;
       }
 
-      if (plCtr.isDesktopPip) {
-        plCtr
+      if (playerController.isDesktopPip) {
+        playerController
           ..exitDesktopPip().whenComplete(
-            () => plCtr.initialFocalPoint = Offset.zero,
+            () => playerController.initialFocalPoint = Offset.zero,
           )
           ..controlsLock.value = false
           ..showControls.value = false;

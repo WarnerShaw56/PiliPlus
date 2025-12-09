@@ -799,34 +799,34 @@ class PlPlayerController {
             logLevel: kDebugMode ? MPVLogLevel.warn : MPVLogLevel.error,
           ),
         );
-    final pp = player.platform!;
+    final playerPlatform = player.platform!;
     if (_videoPlayerController == null) {
       if (Utils.isDesktop) {
-        pp.setVolume(this.volume.value * 100);
+        playerPlatform.setVolume(this.volume.value * 100);
       }
       if (isAnim) {
-        setShader(superResolutionType.value, pp);
+        setShader(superResolutionType.value, playerPlatform);
       }
-      await pp.setProperty("af", "scaletempo2=max-speed=8");
+      await playerPlatform.setProperty("af", "scaletempo2=max-speed=8");
       if (Platform.isAndroid) {
-        await pp.setProperty("volume-max", "100");
+        await playerPlatform.setProperty("volume-max", "100");
         String ao = Pref.useOpenSLES
             ? "opensles,audiotrack"
             : "audiotrack,opensles";
-        await pp.setProperty("ao", ao);
+        await playerPlatform.setProperty("ao", ao);
       }
       // video-sync=display-resample
-      await pp.setProperty("video-sync", Pref.videoSync);
+      await playerPlatform.setProperty("video-sync", Pref.videoSync);
       // vo=gpu-next & gpu-context=android & gpu-api=opengl
-      // await pp.setProperty("vo", "gpu-next");
-      // await pp.setProperty("gpu-context", "android");
-      // await pp.setProperty("gpu-api", "opengl");
+      // await playerPlatform.setProperty("vo", "gpu-next");
+      // await playerPlatform.setProperty("gpu-context", "android");
+      // await playerPlatform.setProperty("gpu-api", "opengl");
       await player.setAudioTrack(AudioTrack.auto());
       if (Pref.enableSystemProxy) {
         final systemProxyHost = Pref.systemProxyHost;
         final systemProxyPort = int.tryParse(Pref.systemProxyPort);
         if (systemProxyPort != null && systemProxyHost.isNotEmpty) {
-          await pp.setProperty(
+          await playerPlatform.setProperty(
             "http-proxy",
             'http://$systemProxyHost:$systemProxyPort',
           );
