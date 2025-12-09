@@ -32,7 +32,7 @@ class DynTopicPage extends StatefulWidget {
   State<DynTopicPage> createState() => _DynTopicPageState();
 }
 
-class _DynTopicPageState extends State<DynTopicPage> with DynMixin {
+class _DynTopicPageState extends State<DynTopicPage> with DynamicContentMixin {
   final DynTopicController _controller = Get.put(
     DynTopicController(),
     tag: Utils.generateRandomString(8),
@@ -346,12 +346,12 @@ class _DynTopicPageState extends State<DynTopicPage> with DynMixin {
 
   Widget _buildBody(LoadingState<List<TopicCardItem>?> loadingState) {
     return switch (loadingState) {
-      Loading() => dynSkeleton,
+      Loading() => dynamicSkeleton,
       Success(:var response) =>
         response != null && response.isNotEmpty
             ? GlobalData().dynamicsWaterfallFlow
                   ? SliverWaterfallFlow(
-                      gridDelegate: dynGridDelegate,
+                      gridDelegate: dynamicGridDelegate,
                       delegate: SliverChildBuilderDelegate(
                         (_, index) {
                           if (index == response.length - 1) {

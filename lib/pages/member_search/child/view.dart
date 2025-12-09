@@ -28,7 +28,7 @@ class MemberSearchChildPage extends StatefulWidget {
 }
 
 class _MemberSearchChildPageState extends State<MemberSearchChildPage>
-    with AutomaticKeepAliveClientMixin, DynMixin, GridMixin {
+    with AutomaticKeepAliveClientMixin, DynamicContentMixin, GridMixin {
   MemberSearchChildController get _controller => widget.controller;
 
   @override
@@ -62,7 +62,7 @@ class _MemberSearchChildPageState extends State<MemberSearchChildPage>
   Widget get _buildLoading {
     return switch (widget.searchType) {
       MemberSearchType.archive => gridSkeleton,
-      MemberSearchType.dynamic => dynSkeleton,
+      MemberSearchType.dynamic => dynamicSkeleton,
     };
   }
 
@@ -89,7 +89,7 @@ class _MemberSearchChildPageState extends State<MemberSearchChildPage>
                     MemberSearchType.dynamic =>
                       GlobalData().dynamicsWaterfallFlow
                           ? SliverWaterfallFlow(
-                              gridDelegate: dynGridDelegate,
+                              gridDelegate: dynamicGridDelegate,
                               delegate: SliverChildBuilderDelegate(
                                 (_, index) {
                                   if (index == response.length - 1) {

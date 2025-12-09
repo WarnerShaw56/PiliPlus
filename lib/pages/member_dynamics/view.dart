@@ -22,7 +22,7 @@ class MemberDynamicsPage extends StatefulWidget {
 }
 
 class _MemberDynamicsPageState extends State<MemberDynamicsPage>
-    with AutomaticKeepAliveClientMixin, DynMixin {
+    with AutomaticKeepAliveClientMixin, DynamicContentMixin {
   late MemberDynamicsController _memberDynamicController;
   late int mid;
 
@@ -78,12 +78,12 @@ class _MemberDynamicsPageState extends State<MemberDynamicsPage>
 
   Widget _buildContent(LoadingState<List<DynamicItemModel>?> loadingState) {
     return switch (loadingState) {
-      Loading() => dynSkeleton,
+      Loading() => dynamicSkeleton,
       Success(:var response) =>
         response != null && response.isNotEmpty
             ? GlobalData().dynamicsWaterfallFlow
                   ? SliverWaterfallFlow(
-                      gridDelegate: dynGridDelegate,
+                      gridDelegate: dynamicGridDelegate,
                       delegate: SliverChildBuilderDelegate(
                         (_, index) {
                           if (index == response.length - 1) {

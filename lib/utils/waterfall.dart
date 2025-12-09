@@ -7,10 +7,10 @@ import 'package:flutter/rendering.dart' show SliverConstraints;
 import 'package:waterfall_flow/waterfall_flow.dart'
     show SliverWaterfallFlowDelegate;
 
-mixin DynMixin {
+mixin DynamicContentMixin {
   late double maxWidth;
 
-  late final dynGridDelegate =
+  late final dynamicGridDelegate =
       SliverWaterfallFlowDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: Grid.smallCardWidth * 2,
         crossAxisSpacing: 4,
@@ -40,7 +40,7 @@ mixin DynMixin {
     );
   }
 
-  late final skeDelegate = SliverGridDelegateWithExtentAndRatio(
+  late final skeletonDelegate = SliverGridDelegateWithExtentAndRatio(
     crossAxisSpacing: 4,
     mainAxisSpacing: 4,
     maxCrossAxisExtent: Grid.smallCardWidth * 2,
@@ -48,10 +48,10 @@ mixin DynMixin {
     mainAxisExtent: 50,
   );
 
-  Widget get dynSkeleton {
+  Widget get dynamicSkeleton {
     if (GlobalData().dynamicsWaterfallFlow) {
       return SliverGrid.builder(
-        gridDelegate: skeDelegate,
+        gridDelegate: skeletonDelegate,
         itemBuilder: (_, _) => const DynamicCardSkeleton(),
         itemCount: 10,
       );

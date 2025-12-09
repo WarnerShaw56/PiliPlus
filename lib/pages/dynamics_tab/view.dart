@@ -29,7 +29,7 @@ class DynamicsTabPage extends StatefulWidget {
 
 class _DynamicsTabPageState
     extends CommonPageState<DynamicsTabPage, DynamicsTabController>
-    with AutomaticKeepAliveClientMixin, DynMixin {
+    with AutomaticKeepAliveClientMixin, DynamicContentMixin {
   StreamSubscription? _listener;
   late final MainController _mainController = Get.find<MainController>();
 
@@ -112,12 +112,12 @@ class _DynamicsTabPageState
 
   Widget _buildBody(LoadingState<List<DynamicItemModel>?> loadingState) {
     return switch (loadingState) {
-      Loading() => dynSkeleton,
+      Loading() => dynamicSkeleton,
       Success(:var response) =>
         response != null && response.isNotEmpty
             ? GlobalData().dynamicsWaterfallFlow
                   ? SliverWaterfallFlow(
-                      gridDelegate: dynGridDelegate,
+                      gridDelegate: dynamicGridDelegate,
                       delegate: SliverChildBuilderDelegate(
                         (_, index) {
                           if (index == response.length - 1) {
