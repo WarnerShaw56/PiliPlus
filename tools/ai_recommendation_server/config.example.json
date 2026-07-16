@@ -1,8 +1,13 @@
 {
-  "preference": "优先信息密度高、论证扎实、能提供新知识或独到观点的视频；降低标题党、搬运和低信息密度内容的分数。",
-  "candidate_count": 30,
-  "shortlist_count": 10,
+  "preference": "只推荐以电子游戏为核心的优质长视频。优先深度评测、游戏设计与叙事分析、开发史、行业纪录片和剪辑完善的专题；降低标题党、纯情绪输出、直播切片、无剪辑录像和低信息密度内容的分数。优先 25 分钟以上，若不足可用优质 15 至 25 分钟游戏专题作为备选，不得用非游戏内容补足。",
+  "candidate_count": 300,
+  "shortlist_count": 120,
+  "fetch_page_size": 30,
+  "batch_size": 40,
+  "batch_result_count": 12,
+  "finalist_count": 24,
   "result_count": 8,
   "transcript_chars": 3500,
+  "fill_results": true,
   "redact_preference": true
 }

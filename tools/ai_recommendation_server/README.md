@@ -6,11 +6,18 @@ the PiliPlus client can also create locally. The phone only downloads
 
 Pipeline:
 
-1. Fetch the signed, logged-in Bilibili home recommendation feed.
+1. Fetch multiple signed pages from the logged-in Bilibili home recommendation feed and deduplicate them.
 2. Cheaply shortlist candidates by engagement metadata.
-3. Download Chinese subtitles where available.
-4. Ask an OpenAI-compatible model to score and explain the shortlist.
-5. Atomically replace a static `feed.json` for Nginx or Caddy to serve.
+3. Ask an OpenAI-compatible model to rank metadata in bounded batches.
+4. Download Chinese subtitles only for the cross-batch finalists.
+5. Ask the model for a final rerank and label any configured fallback items as backups.
+6. Atomically replace a static `feed.json` for Nginx or Caddy to serve.
+
+The example configuration fetches up to 300 candidates, heuristically keeps 120,
+ranks them in three batches of 40, downloads subtitles for 24 finalists, and
+publishes 8 results. `fill_results` keeps the feed size stable when a model
+returns fewer items; every such item is explicitly labeled `备选`. Set it to
+`false` for strict "better empty than mediocre" behavior.
 
 ## Run once
 
