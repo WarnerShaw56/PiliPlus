@@ -1,0 +1,8 @@
+{
+  "preference": "优先信息密度高、论证扎实、能提供新知识或独到观点的视频；降低标题党、搬运和低信息密度内容的分数。",
+  "candidate_count": 30,
+  "shortlist_count": 10,
+  "result_count": 8,
+  "transcript_chars": 3500,
+  "redact_preference": true
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Generate PiliPlus AI recommendation feed
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=piliplus-ai
+Group=piliplus-ai
+WorkingDirectory=/opt/piliplus-ai
+EnvironmentFile=/opt/piliplus-ai/.env
+ExecStart=/opt/piliplus-ai/.venv/bin/python generate.py --config config.json --output /var/www/piliplus-ai/feed.json
+PrivateTmp=true
+NoNewPrivileges=true

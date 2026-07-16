@@ -3,6 +3,7 @@ import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_v.dart';
+import 'package:PiliPlus/features/ai_recommendation/preferences.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/utils/grid.dart';
@@ -38,6 +39,20 @@ class _RcmdPageState extends State<RcmdPage>
           controller: controller.scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
+            if (AiRecommendationPreferences.enabled)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: Style.cardSpace),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: ActionChip(
+                      avatar: const Icon(Icons.auto_awesome_outlined, size: 18),
+                      label: const Text('今日 AI 精选'),
+                      onPressed: () => Get.toNamed('/aiRecommendations'),
+                    ),
+                  ),
+                ),
+              ),
             SliverPadding(
               padding: const .only(top: Style.cardSpace, bottom: 100),
               sliver: Obx(
