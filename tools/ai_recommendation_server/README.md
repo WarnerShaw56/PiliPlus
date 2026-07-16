@@ -51,6 +51,10 @@ sudo systemctl start piliplus-ai.service
 journalctl -u piliplus-ai.service -n 100 --no-pager
 ```
 
+The supplied timer runs at 07:30 in `Asia/Shanghai`. The oneshot service has a
+15-minute startup timeout and a read-only system sandbox, with write access
+limited to `/var/www/piliplus-ai`.
+
 The prototype does not run ASR when subtitles are missing. The reusable next
 step is to plug in the audio-download and ASR path from
 `jackwener/bilibili-summary` before the final AI ranking stage; that keeps the

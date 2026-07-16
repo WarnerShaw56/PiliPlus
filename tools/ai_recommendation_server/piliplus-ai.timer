@@ -2,7 +2,7 @@
 Description=Generate PiliPlus AI recommendations every morning
 
 [Timer]
-OnCalendar=*-*-* 07:30:00
+OnCalendar=*-*-* 07:30:00 Asia/Shanghai
 Persistent=true
 RandomizedDelaySec=5m
 
