@@ -7,17 +7,22 @@ the PiliPlus client can also create locally. The phone only downloads
 Pipeline:
 
 1. Fetch multiple signed pages from the logged-in Bilibili home recommendation feed and deduplicate them.
-2. Cheaply shortlist candidates by engagement metadata.
+2. Discard videos below the configured duration floor, then cheaply shortlist
+   the remaining candidates by engagement metadata with a modest long-form bonus.
 3. Ask an OpenAI-compatible model to rank metadata in bounded batches.
 4. Download Chinese subtitles only for the cross-batch finalists.
-5. Ask the model for a final rerank and label any configured fallback items as backups.
+5. Ask the model for a final rerank and allow only AI-approved preliminary
+   candidates to fill missing final slots, labeled as backups.
 6. Atomically replace a static `feed.json` for Nginx or Caddy to serve.
 
-The example configuration fetches up to 300 candidates, heuristically keeps 120,
-ranks them in three batches of 40, downloads subtitles for 24 finalists, and
-publishes 8 results. `fill_results` keeps the feed size stable when a model
-returns fewer items; every such item is explicitly labeled `备选`. Set it to
-`false` for strict "better empty than mediocre" behavior.
+The example configuration fetches up to 800 candidates, rejects anything under
+15 minutes, heuristically keeps up to 200, ranks them in batches of 40,
+downloads subtitles for up to 40 AI-approved finalists, and publishes up to 8
+results. `fill_results` may fill a missing final slot only from candidates that
+the model already approved during metadata screening; every such item is
+explicitly labeled `备选`. It never uses unrelated high-engagement metadata to
+force the feed to a fixed size. Set it to `false` to disable even these screened
+backups.
 
 ## Run once
 

@@ -91,12 +91,13 @@ INVALID_WBI_CHARS = re.compile(r"[!'()*]")
 @dataclass(frozen=True)
 class Config:
     preference: str
-    candidate_count: int = 300
-    shortlist_count: int = 120
+    candidate_count: int = 800
+    minimum_duration_seconds: int = 900
+    shortlist_count: int = 200
     fetch_page_size: int = 30
     batch_size: int = 40
-    batch_result_count: int = 12
-    finalist_count: int = 24
+    batch_result_count: int = 16
+    finalist_count: int = 40
     result_count: int = 8
     transcript_chars: int = 3500
     fill_results: bool = True
@@ -106,8 +107,10 @@ class Config:
     def load(cls, path: Path) -> "Config":
         data = json.loads(path.read_text(encoding="utf-8"))
         config = cls(**data)
-        if not 5 <= config.candidate_count <= 500:
-            raise ValueError("candidate_count must be between 5 and 500")
+        if not 5 <= config.candidate_count <= 1000:
+            raise ValueError("candidate_count must be between 5 and 1000")
+        if not 60 <= config.minimum_duration_seconds <= 14400:
+            raise ValueError("minimum_duration_seconds must be between 60 and 14400")
         if not 10 <= config.fetch_page_size <= 50:
             raise ValueError("fetch_page_size must be between 10 and 50")
         if not 5 <= config.batch_size <= 100:
@@ -171,10 +174,12 @@ class Candidate:
     def heuristic_score(self) -> float:
         view = max(self.view or 0, 0)
         like_ratio = (self.like or 0) / max(view, 1)
+        duration_bonus = min(max(self.duration - 900, 0) / 2700, 1) * 10
         return (
             math.log10(view + 1) * 5
             + min(like_ratio, 0.2) * 180
             + (12 if self.is_followed else 0)
+            + duration_bonus
         )
 
     def with_transcript(self, transcript: str | None) -> "Candidate":
@@ -285,7 +290,7 @@ class BilibiliClient:
         candidates: list[Candidate] = []
         seen: set[str] = set()
         empty_pages = 0
-        pages_to_try = min(40, max(4, math.ceil(count / page_size) * 2))
+        pages_to_try = min(60, max(4, math.ceil(count / page_size) * 2))
 
         for fresh_idx in range(1, pages_to_try + 1):
             params = await self._sign(
@@ -481,23 +486,15 @@ def batches(candidates: list[Candidate], size: int) -> list[list[Candidate]]:
 
 def fallback_decision(
     candidate: Candidate,
-    preliminary: dict[str, Any] | None,
+    preliminary: dict[str, Any],
 ) -> dict[str, Any]:
-    if preliminary:
-        reason = str(preliminary.get("reason") or "按初筛结果补足")
-        return {
-            **preliminary,
-            "bvid": candidate.bvid,
-            "score": min(69, round(_decision_score(preliminary))),
-            "reason": f"备选：{reason}",
-            "tags": ["备选", *[str(tag) for tag in preliminary.get("tags") or []]][:4],
-        }
+    reason = str(preliminary.get("reason") or "按初筛结果补足")
     return {
+        **preliminary,
         "bvid": candidate.bvid,
-        "score": min(59, round(candidate.heuristic_score)),
-        "reason": "备选：AI 返回数量不足，按互动质量补足",
-        "summary": "仅根据标题、UP、时长和互动数据生成的备选。",
-        "tags": ["备选", "元数据"],
+        "score": min(69, round(_decision_score(preliminary))),
+        "reason": f"备选：{reason}",
+        "tags": ["备选", *[str(tag) for tag in preliminary.get("tags") or []]][:4],
     }
 
 
@@ -509,8 +506,20 @@ async def generate(config: Config, output: Path) -> dict[str, Any]:
         )
         if not candidates:
             raise RuntimeError("Bilibili recommendation feed returned no videos")
+        duration_eligible = [
+            candidate
+            for candidate in candidates
+            if candidate.duration >= config.minimum_duration_seconds
+        ]
+        if not duration_eligible:
+            raise RuntimeError(
+                "Bilibili recommendation feed returned no videos at or above "
+                f"{config.minimum_duration_seconds} seconds"
+            )
         shortlist = sorted(
-            candidates, key=lambda item: item.heuristic_score, reverse=True
+            duration_eligible,
+            key=lambda item: item.heuristic_score,
+            reverse=True,
         )[: config.shortlist_count]
         preliminary_decisions: list[dict[str, Any]] = []
         shortlist_batches = batches(shortlist, config.batch_size)
@@ -533,10 +542,8 @@ async def generate(config: Config, output: Path) -> dict[str, Any]:
             shortlist_by_bvid[str(decision.get("bvid"))]
             for decision in preliminary_decisions
         ]
-        ranked_bvids = {candidate.bvid for candidate in ranked_candidates}
-        ranked_candidates.extend(
-            candidate for candidate in shortlist if candidate.bvid not in ranked_bvids
-        )
+        if not ranked_candidates:
+            raise RuntimeError("AI preliminary ranking returned no valid candidates")
         finalists = ranked_candidates[: config.finalist_count]
         enriched = await enrich_subtitles(bili, finalists)
 
@@ -552,10 +559,13 @@ async def generate(config: Config, output: Path) -> dict[str, Any]:
         for candidate in enriched:
             if candidate.bvid in selected_bvids:
                 continue
+            preliminary = preliminary_by_bvid.get(candidate.bvid)
+            if preliminary is None:
+                continue
             decisions.append(
                 fallback_decision(
                     candidate,
-                    preliminary_by_bvid.get(candidate.bvid),
+                    preliminary,
                 )
             )
             selected_bvids.add(candidate.bvid)
@@ -579,6 +589,8 @@ async def generate(config: Config, output: Path) -> dict[str, Any]:
         "pipeline": {
             "candidate_target": config.candidate_count,
             "candidates_fetched": len(candidates),
+            "minimum_duration_seconds": config.minimum_duration_seconds,
+            "duration_eligible": len(duration_eligible),
             "heuristic_shortlist": len(shortlist),
             "ai_batches": len(shortlist_batches),
             "preliminary_ranked": len(preliminary_decisions),
