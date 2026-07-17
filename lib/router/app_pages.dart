@@ -1,3 +1,4 @@
+import 'package:PiliPlus/features/ai_recommendation/group_settings_page.dart';
 import 'package:PiliPlus/features/ai_recommendation/recommendations_page.dart';
 import 'package:PiliPlus/features/ai_recommendation/settings_page.dart';
 import 'package:PiliPlus/pages/article/view.dart';
@@ -92,6 +93,10 @@ class Routes {
     GetPage(
       name: '/aiRecommendations',
       page: () => const AiRecommendationsPage(),
+    ),
+    GetPage(
+      name: '/aiPreferenceGroups',
+      page: () => const AiPreferenceGroupsPage(),
     ),
     //
     GetPage(name: '/fav', page: () => const FavPage()),

@@ -1,0 +1,27 @@
+[Unit]
+Description=PiliPlus AI preference group management API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=piliplus-ai
+Group=piliplus-ai
+WorkingDirectory=/opt/piliplus-ai
+EnvironmentFile=/opt/piliplus-ai/.env
+Environment=PILIPLUS_AI_CONFIG=/var/lib/piliplus-ai/config.json
+Environment=PILIPLUS_AI_FEED=/var/www/piliplus-ai/feed.json
+Environment=PILIPLUS_AI_HISTORY=/var/lib/piliplus-ai/history.json
+Environment=PILIPLUS_AI_LOCK=/var/lib/piliplus-ai/generation.lock
+ExecStart=/opt/piliplus-ai/.venv/bin/uvicorn server:app --host 127.0.0.1 --port 8787
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/piliplus-ai /var/www/piliplus-ai
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

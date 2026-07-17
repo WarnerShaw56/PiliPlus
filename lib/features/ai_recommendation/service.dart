@@ -136,7 +136,7 @@ class AiRecommendationService {
         _ => throw const FormatException('响应不是 JSON 对象'),
       };
       final feed = AiRecommendationFeed.fromJson(map);
-      if (feed.items.isEmpty) {
+      if (feed.items.isEmpty && !feed.isGrouped) {
         throw const FormatException('VPS JSON 没有推荐内容');
       }
       return feed;

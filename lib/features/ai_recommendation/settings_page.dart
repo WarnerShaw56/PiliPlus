@@ -279,6 +279,17 @@ class _AiRecommendationSettingsPageState
       ),
       validator: _urlValidator,
     ),
+    const SizedBox(height: 12),
+    OutlinedButton.icon(
+      onPressed: _openPreferenceGroups,
+      icon: const Icon(Icons.view_list_outlined),
+      label: const Text('管理 VPS 偏好组'),
+    ),
+    const SizedBox(height: 8),
+    const Text(
+      '可为每个组选择首页推荐流、B 站搜索或混合来源，并分别编辑评分提示词。',
+      style: TextStyle(color: Colors.grey),
+    ),
   ];
 
   String? _urlValidator(String? value) {
@@ -337,5 +348,10 @@ class _AiRecommendationSettingsPageState
     } finally {
       if (mounted) setState(() => _running = false);
     }
+  }
+
+  Future<void> _openPreferenceGroups() async {
+    if (!await _save(showToast: false)) return;
+    Get.toNamed('/aiPreferenceGroups');
   }
 }

@@ -10,6 +10,40 @@
     "generated_at": { "type": "string", "format": "date-time" },
     "source": { "type": "string", "enum": ["local", "vps"] },
     "preference_snapshot": { "type": "string" },
+    "groups": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "name", "source", "items"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "intent": { "type": "string" },
+          "prompt": { "type": "string" },
+          "source": {
+            "type": "string",
+            "enum": ["recommendation", "search", "hybrid"]
+          },
+          "search_queries": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 12
+          },
+          "result_count": { "type": "integer", "minimum": 1, "maximum": 30 },
+          "minimum_duration_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 14400
+          },
+          "enabled": { "type": "boolean" },
+          "pipeline": { "type": "object" },
+          "error": { "type": ["string", "null"] },
+          "items": { "$ref": "#/properties/items" }
+        }
+      }
+    },
     "items": {
       "type": "array",
       "items": {

@@ -1,13 +1,24 @@
 import json
 import os
 import unittest
+from datetime import date
 from pathlib import Path
 import sys
 import tempfile
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
-from generate import Candidate, Config, batches, fallback_decision, valid_decisions
+from generate import (
+    Candidate,
+    Config,
+    PreferenceGroup,
+    batches,
+    fallback_decision,
+    recent_bvids,
+    remember_results,
+    search_plan,
+    valid_decisions,
+)
 
 
 class CandidateTests(unittest.TestCase):
@@ -91,8 +102,78 @@ class ConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "between 5 and 2500"):
             self.load({"preference": "games", "candidate_count": 2501})
 
+    def test_group_config_and_search_plan_are_deterministic(self) -> None:
+        config = self.load(
+            {
+                "preference": "",
+                "groups": [
+                    {
+                        "id": "game-search",
+                        "name": "游戏搜索",
+                        "intent": "游戏深度视频",
+                        "prompt": "优先深度内容",
+                        "source": "search",
+                        "search_queries": ["游戏设计", "游戏史"],
+                    }
+                ],
+            }
+        )
+        group = config.groups[0]
+        first = search_plan(group, config, date(2026, 7, 17))
+        second = search_plan(group, config, date(2026, 7, 17))
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 4)
+        self.assertTrue(all(page >= 1 for _, page, _ in first))
+
+    def test_search_group_requires_queries(self) -> None:
+        with self.assertRaisesRegex(ValueError, "require search_queries"):
+            self.load(
+                {
+                    "groups": [
+                        {
+                            "id": "missing-search",
+                            "name": "搜索",
+                            "intent": "游戏",
+                            "prompt": "游戏",
+                            "source": "search",
+                        }
+                    ]
+                }
+            )
+
+
+class HistoryTests(unittest.TestCase):
+    def test_history_tracks_recent_results_per_group(self) -> None:
+        history: dict = {"groups": {}}
+        remember_results(
+            history,
+            "games",
+            date(2026, 7, 17),
+            ["BV-1", "BV-2"],
+            30,
+        )
+        self.assertEqual(
+            recent_bvids(history, "games", date(2026, 7, 18), 30),
+            {"BV-1", "BV-2"},
+        )
+        self.assertEqual(
+            recent_bvids(history, "other", date(2026, 7, 18), 30),
+            set(),
+        )
+
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):
+    async def test_empty_group_config_publishes_empty_grouped_feed(self) -> None:
+        from generate import generate
+
+        config = Config.from_json({"groups": []})
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "feed.json"
+            feed = await generate(config, output)
+        self.assertEqual(feed["groups"], [])
+        self.assertEqual(feed["items"], [])
+        self.assertEqual(feed["pipeline"]["group_count"], 0)
+
     async def test_pipeline_batches_reranks_and_fills(self) -> None:
         candidates = [
             CandidateTests().candidate(f"BV-{index}") for index in range(2000)
@@ -116,7 +197,14 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
             async def subtitle(self, candidate: Candidate):
                 return candidate, f"subtitle for {candidate.bvid}"
 
-        async def fake_ai_rank(_config, batch, desired_count, stage):
+        async def fake_ai_rank(
+            _config,
+            _group,
+            batch,
+            desired_count,
+            stage,
+            _recently_recommended,
+        ):
             self.assertTrue(all(candidate.duration >= 900 for candidate in batch))
             count = 2 if stage == "final" else desired_count
             return [
@@ -130,9 +218,10 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
                 for index, candidate in enumerate(batch[:count])
             ]
 
-        config = Config(preference="games")
+        config = Config.from_json({"preference": "games"})
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "feed.json"
+            history = Path(directory) / "history.json"
             with (
                 patch.dict(os.environ, {"BILI_COOKIE": "secret"}),
                 patch("generate.BilibiliClient", FakeBilibiliClient),
@@ -140,12 +229,14 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
             ):
                 from generate import generate
 
-                feed = await generate(config, output)
+                feed = await generate(config, output, history)
 
             self.assertEqual(feed["pipeline"]["candidates_fetched"], 2000)
-            self.assertEqual(feed["pipeline"]["duration_eligible"], 1998)
-            self.assertEqual(feed["pipeline"]["ai_batches"], 10)
-            self.assertEqual(feed["pipeline"]["subtitle_hits"], 60)
+            self.assertEqual(len(feed["groups"]), 1)
+            group_pipeline = feed["groups"][0]["pipeline"]
+            self.assertEqual(group_pipeline["duration_eligible"], 1998)
+            self.assertEqual(group_pipeline["ai_batches"], 10)
+            self.assertEqual(group_pipeline["subtitle_hits"], 60)
             self.assertEqual(len(feed["items"]), 8)
             self.assertTrue(feed["items"][2]["reason"].startswith("备选："))
             self.assertTrue(all(item["duration"] >= 900 for item in feed["items"]))
@@ -153,6 +244,7 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
                 any("按互动质量补足" in item["reason"] for item in feed["items"])
             )
             self.assertTrue(output.exists())
+            self.assertTrue(history.exists())
 
 
 if __name__ == "__main__":

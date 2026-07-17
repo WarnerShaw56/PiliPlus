@@ -4,6 +4,87 @@ enum AiRecommendationMode { local, vps }
 
 enum AiApiFormat { openAi, anthropic }
 
+enum AiRecommendationSource { recommendation, search, hybrid }
+
+class AiPreferenceGroup {
+  const AiPreferenceGroup({
+    required this.id,
+    required this.name,
+    required this.intent,
+    required this.prompt,
+    required this.source,
+    this.searchQueries = const [],
+    this.resultCount = 8,
+    this.minimumDurationSeconds = 900,
+    this.enabled = true,
+  });
+
+  factory AiPreferenceGroup.fromJson(Map<String, dynamic> json) =>
+      AiPreferenceGroup(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        intent: json['intent'] as String? ?? '',
+        prompt: json['prompt'] as String? ?? '',
+        source: AiRecommendationSource.values.firstWhere(
+          (source) => source.name == json['source'],
+          orElse: () => AiRecommendationSource.recommendation,
+        ),
+        searchQueries:
+            (json['search_queries'] as List?)
+                ?.map((query) => query.toString())
+                .toList() ??
+            const [],
+        resultCount: _asInt(json['result_count']) ?? 8,
+        minimumDurationSeconds: _asInt(json['minimum_duration_seconds']) ?? 900,
+        enabled: json['enabled'] as bool? ?? true,
+      );
+
+  final String id;
+  final String name;
+  final String intent;
+  final String prompt;
+  final AiRecommendationSource source;
+  final List<String> searchQueries;
+  final int resultCount;
+  final int minimumDurationSeconds;
+  final bool enabled;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'intent': intent,
+    'prompt': prompt,
+    'source': source.name,
+    'search_queries': searchQueries,
+    'result_count': resultCount,
+    'minimum_duration_seconds': minimumDurationSeconds,
+    'enabled': enabled,
+  };
+
+  AiPreferenceGroup copyWith({
+    String? id,
+    String? name,
+    String? intent,
+    String? prompt,
+    AiRecommendationSource? source,
+    List<String>? searchQueries,
+    int? resultCount,
+    int? minimumDurationSeconds,
+    bool? enabled,
+  }) => AiPreferenceGroup(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    intent: intent ?? this.intent,
+    prompt: prompt ?? this.prompt,
+    source: source ?? this.source,
+    searchQueries: searchQueries ?? this.searchQueries,
+    resultCount: resultCount ?? this.resultCount,
+    minimumDurationSeconds:
+        minimumDurationSeconds ?? this.minimumDurationSeconds,
+    enabled: enabled ?? this.enabled,
+  );
+}
+
 class AiRecommendationCandidate {
   const AiRecommendationCandidate({
     required this.bvid,
@@ -179,6 +260,43 @@ class AiRecommendationItem {
   };
 }
 
+class AiRecommendationGroupFeed {
+  const AiRecommendationGroupFeed({
+    required this.group,
+    required this.items,
+    this.pipeline = const {},
+    this.error,
+  });
+
+  factory AiRecommendationGroupFeed.fromJson(Map<String, dynamic> json) =>
+      AiRecommendationGroupFeed(
+        group: AiPreferenceGroup.fromJson(json),
+        items: (json['items'] as List? ?? const [])
+            .map(
+              (item) => AiRecommendationItem.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList(),
+        pipeline: json['pipeline'] is Map
+            ? Map<String, dynamic>.from(json['pipeline'] as Map)
+            : const {},
+        error: json['error'] as String?,
+      );
+
+  final AiPreferenceGroup group;
+  final List<AiRecommendationItem> items;
+  final Map<String, dynamic> pipeline;
+  final String? error;
+
+  Map<String, dynamic> toJson() => {
+    ...group.toJson(),
+    'pipeline': pipeline,
+    'error': error,
+    'items': items.map((item) => item.toJson()).toList(),
+  };
+}
+
 class AiRecommendationFeed {
   const AiRecommendationFeed({
     this.schemaVersion = 1,
@@ -186,6 +304,8 @@ class AiRecommendationFeed {
     required this.source,
     required this.preferenceSnapshot,
     required this.items,
+    this.groups = const [],
+    this.isGrouped = false,
   });
 
   factory AiRecommendationFeed.fromJson(Map<String, dynamic> json) {
@@ -211,6 +331,15 @@ class AiRecommendationFeed {
             ),
           )
           .toList(),
+      groups: (json['groups'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (group) => AiRecommendationGroupFeed.fromJson(
+              Map<String, dynamic>.from(group),
+            ),
+          )
+          .toList(),
+      isGrouped: json.containsKey('groups'),
     );
   }
 
@@ -219,6 +348,25 @@ class AiRecommendationFeed {
   final String source;
   final String preferenceSnapshot;
   final List<AiRecommendationItem> items;
+  final List<AiRecommendationGroupFeed> groups;
+  final bool isGrouped;
+
+  List<AiRecommendationGroupFeed> get effectiveGroups {
+    if (groups.isNotEmpty) return groups;
+    if (isGrouped) return const [];
+    return [
+      AiRecommendationGroupFeed(
+        group: AiPreferenceGroup(
+          id: 'default',
+          name: '每日精选',
+          intent: preferenceSnapshot,
+          prompt: preferenceSnapshot,
+          source: AiRecommendationSource.recommendation,
+        ),
+        items: items,
+      ),
+    ];
+  }
 
   Map<String, dynamic> toJson() => {
     'schema_version': schemaVersion,
@@ -226,6 +374,8 @@ class AiRecommendationFeed {
     'source': source,
     'preference_snapshot': preferenceSnapshot,
     'items': items.map((item) => item.toJson()).toList(),
+    if (isGrouped || groups.isNotEmpty)
+      'groups': groups.map((group) => group.toJson()).toList(),
   };
 }
 

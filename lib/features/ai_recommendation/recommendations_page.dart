@@ -18,6 +18,7 @@ class AiRecommendationsPage extends StatefulWidget {
 
 class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
   AiRecommendationFeed? _feed;
+  String? _selectedGroupId;
   bool _running = false;
 
   @override
@@ -48,17 +49,69 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
         ),
       ],
     ),
-    body: _feed == null
-        ? _empty
-        : ListView(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
-            children: [
-              _header(_feed!),
-              const SizedBox(height: 8),
-              ..._feed!.items.map(_itemCard),
-            ],
-          ),
+    body: _feed == null ? _empty : _feedBody(_feed!),
   );
+
+  Widget _feedBody(AiRecommendationFeed feed) {
+    final groups = feed.effectiveGroups;
+    if (feed.isGrouped && groups.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _header(feed, 0),
+          const SizedBox(height: 24),
+          const Center(child: Text('暂无启用的偏好组，请到配置页新建或启用一个组')),
+        ],
+      );
+    }
+    final group = groups.firstWhere(
+      (item) => item.group.id == _selectedGroupId,
+      orElse: () => groups.first,
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+      children: [
+        _header(feed, group.items.length),
+        if (groups.length > 1) ...[
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: groups
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        selected: item.group.id == group.group.id,
+                        label: Text('${item.group.name} ${item.items.length}'),
+                        onSelected: (_) =>
+                            setState(() => _selectedGroupId = item.group.id),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+        ],
+        const SizedBox(height: 8),
+        _groupHeader(group),
+        if (group.error?.isNotEmpty == true)
+          Card(
+            color: ColorScheme.of(context).errorContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text('本组生成失败：${group.error}'),
+            ),
+          ),
+        if (group.items.isEmpty && group.error?.isNotEmpty != true)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: Text('这个组暂时没有合格推荐')),
+          ),
+        ...group.items.map(_itemCard),
+      ],
+    );
+  }
 
   Widget get _empty => Center(
     child: Padding(
@@ -79,7 +132,7 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
     ),
   );
 
-  Widget _header(AiRecommendationFeed feed) {
+  Widget _header(AiRecommendationFeed feed, int itemCount) {
     final time = feed.generatedAt.toLocal();
     final source = feed.source == 'local' ? '本机生成' : 'VPS';
     return Card(
@@ -98,7 +151,48 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
                 '${time.minute.toString().padLeft(2, '0')}',
               ),
             ),
-            Text('${feed.items.length} 条'),
+            Text('$itemCount 条'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _groupHeader(AiRecommendationGroupFeed group) {
+    final source = switch (group.group.source) {
+      AiRecommendationSource.recommendation => '首页推荐流',
+      AiRecommendationSource.search => 'B 站搜索',
+      AiRecommendationSource.hybrid => '推荐流 + 搜索',
+    };
+    final pipeline = group.pipeline;
+    final sourceCandidates = pipeline['source_candidates'];
+    final preliminary = pipeline['preliminary_ranked'];
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    group.group.name,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                Chip(label: Text(source), visualDensity: VisualDensity.compact),
+              ],
+            ),
+            if (group.group.intent.isNotEmpty) Text(group.group.intent),
+            if (sourceCandidates != null || preliminary != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '候选 ${sourceCandidates ?? '-'} · AI 初筛 '
+                '${preliminary ?? '-'}',
+                style: TextStyle(color: ColorScheme.of(context).outline),
+              ),
+            ],
           ],
         ),
       ),
