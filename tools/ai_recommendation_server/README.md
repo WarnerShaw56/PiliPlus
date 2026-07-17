@@ -15,9 +15,9 @@ Pipeline:
    candidates to fill missing final slots, labeled as backups.
 6. Atomically replace a static `feed.json` for Nginx or Caddy to serve.
 
-The example configuration fetches up to 800 candidates, rejects anything under
-15 minutes, heuristically keeps up to 200, ranks them in batches of 40,
-downloads subtitles for up to 40 AI-approved finalists, and publishes up to 8
+The example configuration fetches up to 2,000 candidates, rejects anything under
+15 minutes, heuristically keeps up to 400, ranks them in batches of 40,
+downloads subtitles for up to 60 AI-approved finalists, and publishes up to 8
 results. `fill_results` may fill a missing final slot only from candidates that
 the model already approved during metadata screening; every such item is
 explicitly labeled `备选`. It never uses unrelated high-engagement metadata to

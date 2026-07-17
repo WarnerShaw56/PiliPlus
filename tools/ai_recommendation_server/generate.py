@@ -91,13 +91,13 @@ INVALID_WBI_CHARS = re.compile(r"[!'()*]")
 @dataclass(frozen=True)
 class Config:
     preference: str
-    candidate_count: int = 800
+    candidate_count: int = 2000
     minimum_duration_seconds: int = 900
-    shortlist_count: int = 200
+    shortlist_count: int = 400
     fetch_page_size: int = 30
     batch_size: int = 40
     batch_result_count: int = 16
-    finalist_count: int = 40
+    finalist_count: int = 60
     result_count: int = 8
     transcript_chars: int = 3500
     fill_results: bool = True
@@ -107,8 +107,8 @@ class Config:
     def load(cls, path: Path) -> "Config":
         data = json.loads(path.read_text(encoding="utf-8"))
         config = cls(**data)
-        if not 5 <= config.candidate_count <= 1000:
-            raise ValueError("candidate_count must be between 5 and 1000")
+        if not 5 <= config.candidate_count <= 2500:
+            raise ValueError("candidate_count must be between 5 and 2500")
         if not 60 <= config.minimum_duration_seconds <= 14400:
             raise ValueError("minimum_duration_seconds must be between 60 and 14400")
         if not 10 <= config.fetch_page_size <= 50:
@@ -290,7 +290,7 @@ class BilibiliClient:
         candidates: list[Candidate] = []
         seen: set[str] = set()
         empty_pages = 0
-        pages_to_try = min(60, max(4, math.ceil(count / page_size) * 2))
+        pages_to_try = min(160, max(4, math.ceil(count / page_size) * 2))
 
         for fresh_idx in range(1, pages_to_try + 1):
             params = await self._sign(

@@ -81,20 +81,22 @@ class ConfigTests(unittest.TestCase):
 
     def test_default_pipeline_uses_large_batched_pool(self) -> None:
         config = self.load({"preference": "games"})
-        self.assertEqual(config.candidate_count, 800)
+        self.assertEqual(config.candidate_count, 2000)
         self.assertEqual(config.minimum_duration_seconds, 900)
-        self.assertEqual(config.shortlist_count, 200)
+        self.assertEqual(config.shortlist_count, 400)
         self.assertEqual(config.batch_size, 40)
-        self.assertEqual(config.finalist_count, 40)
+        self.assertEqual(config.finalist_count, 60)
 
     def test_candidate_limit_is_enforced(self) -> None:
-        with self.assertRaisesRegex(ValueError, "between 5 and 1000"):
-            self.load({"preference": "games", "candidate_count": 1001})
+        with self.assertRaisesRegex(ValueError, "between 5 and 2500"):
+            self.load({"preference": "games", "candidate_count": 2501})
 
 
 class PipelineTests(unittest.IsolatedAsyncioTestCase):
     async def test_pipeline_batches_reranks_and_fills(self) -> None:
-        candidates = [CandidateTests().candidate(f"BV-{index}") for index in range(800)]
+        candidates = [
+            CandidateTests().candidate(f"BV-{index}") for index in range(2000)
+        ]
         candidates[0] = Candidate(**{**candidates[0].__dict__, "duration": 120})
         candidates[1] = Candidate(**{**candidates[1].__dict__, "duration": 720})
 
@@ -140,10 +142,10 @@ class PipelineTests(unittest.IsolatedAsyncioTestCase):
 
                 feed = await generate(config, output)
 
-            self.assertEqual(feed["pipeline"]["candidates_fetched"], 800)
-            self.assertEqual(feed["pipeline"]["duration_eligible"], 798)
-            self.assertEqual(feed["pipeline"]["ai_batches"], 5)
-            self.assertEqual(feed["pipeline"]["subtitle_hits"], 40)
+            self.assertEqual(feed["pipeline"]["candidates_fetched"], 2000)
+            self.assertEqual(feed["pipeline"]["duration_eligible"], 1998)
+            self.assertEqual(feed["pipeline"]["ai_batches"], 10)
+            self.assertEqual(feed["pipeline"]["subtitle_hits"], 60)
             self.assertEqual(len(feed["items"]), 8)
             self.assertTrue(feed["items"][2]["reason"].startswith("备选："))
             self.assertTrue(all(item["duration"] >= 900 for item in feed["items"]))
