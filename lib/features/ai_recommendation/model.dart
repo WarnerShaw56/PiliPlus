@@ -4,6 +4,8 @@ enum AiRecommendationMode { local, vps }
 
 enum AiApiFormat { openAi, anthropic }
 
+enum AiRecommendationHomeSource { bilibili, ai }
+
 enum AiRecommendationSource { recommendation, search, hybrid }
 
 class AiPreferenceGroup {

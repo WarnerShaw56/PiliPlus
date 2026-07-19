@@ -21,6 +21,23 @@ abstract final class AiRecommendationPreferences {
     );
   }
 
+  static AiRecommendationHomeSource get homeSource {
+    final value = GStorage.setting.get(SettingBoxKey.aiRcmdHomeSource);
+    if (value == null) {
+      // Migrate existing opt-in users to the more prominent AI home without
+      // changing the default experience for users who never enabled the feature.
+      return enabled || isConfigured
+          ? AiRecommendationHomeSource.ai
+          : AiRecommendationHomeSource.bilibili;
+    }
+    return AiRecommendationHomeSource.values.firstWhere(
+      (source) => source.name == value,
+      orElse: () => AiRecommendationHomeSource.bilibili,
+    );
+  }
+
+  static bool get replacesHome => homeSource == AiRecommendationHomeSource.ai;
+
   static String get endpoint => GStorage.setting.get(
     SettingBoxKey.aiRcmdEndpoint,
     defaultValue: 'https://api.openai.com/v1',
@@ -58,4 +75,9 @@ abstract final class AiRecommendationPreferences {
 
   static String get remoteUrl =>
       GStorage.setting.get(SettingBoxKey.aiRcmdRemoteUrl, defaultValue: '');
+
+  static bool get isConfigured => switch (mode) {
+    AiRecommendationMode.local => model.trim().isNotEmpty,
+    AiRecommendationMode.vps => remoteUrl.trim().isNotEmpty,
+  };
 }

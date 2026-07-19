@@ -4,6 +4,8 @@ import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
 import 'package:PiliPlus/common/widgets/video_card/video_card_v.dart';
 import 'package:PiliPlus/features/ai_recommendation/preferences.dart';
+import 'package:PiliPlus/features/ai_recommendation/recommendations_page.dart';
+import 'package:PiliPlus/features/ai_recommendation/repository.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/utils/grid.dart';
@@ -28,6 +30,23 @@ class _RcmdPageState extends State<RcmdPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    if (controller.useAiHome) {
+      return Container(
+        clipBehavior: .hardEdge,
+        margin: const .symmetric(horizontal: Style.safeSpace),
+        decoration: const BoxDecoration(borderRadius: Style.mdRadius),
+        child: Obx(
+          () => AiRecommendationFeedView(
+            feed: controller.aiFeed.value,
+            error: controller.aiError.value,
+            running: controller.aiLoading.value,
+            onRefresh: controller.refreshAi,
+            scrollController: controller.scrollController,
+            embedded: true,
+          ),
+        ),
+      );
+    }
     final colorScheme = ColorScheme.of(context);
     return Container(
       clipBehavior: .hardEdge,
@@ -39,7 +58,9 @@ class _RcmdPageState extends State<RcmdPage>
           controller: controller.scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            if (AiRecommendationPreferences.enabled)
+            if (AiRecommendationPreferences.enabled ||
+                AiRecommendationPreferences.isConfigured ||
+                AiRecommendationRepository.read() != null)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: Style.cardSpace),

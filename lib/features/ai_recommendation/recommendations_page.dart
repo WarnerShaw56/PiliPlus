@@ -1,3 +1,4 @@
+import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/features/ai_recommendation/model.dart';
 import 'package:PiliPlus/features/ai_recommendation/repository.dart';
@@ -18,13 +19,14 @@ class AiRecommendationsPage extends StatefulWidget {
 
 class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
   AiRecommendationFeed? _feed;
-  String? _selectedGroupId;
   bool _running = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _feed = AiRecommendationRepository.read();
+    _error = AiRecommendationRepository.lastError;
   }
 
   @override
@@ -49,16 +51,114 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
         ),
       ],
     ),
-    body: _feed == null ? _empty : _feedBody(_feed!),
+    body: AiRecommendationFeedView(
+      feed: _feed,
+      error: _error,
+      running: _running,
+      onRefresh: _refresh,
+    ),
+  );
+
+  Future<void> _refresh() async {
+    if (_running) return;
+    setState(() => _running = true);
+    try {
+      final feed = await AiRecommendationService().refresh();
+      if (mounted) {
+        setState(() {
+          _feed = feed;
+          _error = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+      SmartDialog.showToast(error.toString());
+    } finally {
+      if (mounted) setState(() => _running = false);
+    }
+  }
+}
+
+class AiRecommendationFeedView extends StatefulWidget {
+  const AiRecommendationFeedView({
+    super.key,
+    required this.feed,
+    required this.error,
+    required this.running,
+    required this.onRefresh,
+    this.scrollController,
+    this.embedded = false,
+  });
+
+  final AiRecommendationFeed? feed;
+  final String? error;
+  final bool running;
+  final Future<void> Function() onRefresh;
+  final ScrollController? scrollController;
+  final bool embedded;
+
+  @override
+  State<AiRecommendationFeedView> createState() =>
+      _AiRecommendationFeedViewState();
+}
+
+class _AiRecommendationFeedViewState extends State<AiRecommendationFeedView> {
+  String? _selectedGroupId;
+
+  @override
+  Widget build(BuildContext context) {
+    final feed = widget.feed;
+    final child = feed == null ? _empty : _feedBody(feed);
+    return refreshIndicator(onRefresh: widget.onRefresh, child: child);
+  }
+
+  Widget get _empty => ListView(
+    controller: widget.scrollController,
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: const EdgeInsets.all(32),
+    children: [
+      const SizedBox(height: 72),
+      const Icon(Icons.auto_awesome_outlined, size: 52),
+      const SizedBox(height: 16),
+      Text(widget.error ?? '还没有生成 AI 精选', textAlign: TextAlign.center),
+      const SizedBox(height: 16),
+      Center(
+        child: Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: [
+            FilledButton.icon(
+              onPressed: widget.running ? null : widget.onRefresh,
+              icon: widget.running
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh),
+              label: const Text('立即获取'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => Get.toNamed('/aiRecommendationSettings'),
+              icon: const Icon(Icons.tune),
+              label: const Text('配置'),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 
   Widget _feedBody(AiRecommendationFeed feed) {
     final groups = feed.effectiveGroups;
     if (feed.isGrouped && groups.isEmpty) {
       return ListView(
-        padding: const EdgeInsets.all(24),
+        controller: widget.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: _padding,
         children: [
           _header(feed, 0),
+          if (widget.error != null) _loadError,
           const SizedBox(height: 24),
           const Center(child: Text('暂无启用的偏好组，请到配置页新建或启用一个组')),
         ],
@@ -69,9 +169,12 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
       orElse: () => groups.first,
     );
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 100),
+      controller: widget.scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: _padding,
       children: [
         _header(feed, group.items.length),
+        if (widget.error != null) _loadError,
         if (groups.length > 1) ...[
           const SizedBox(height: 8),
           SingleChildScrollView(
@@ -113,22 +216,18 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
     );
   }
 
-  Widget get _empty => Center(
+  EdgeInsets get _padding => EdgeInsets.fromLTRB(
+    widget.embedded ? 0 : 12,
+    8,
+    widget.embedded ? 0 : 12,
+    100,
+  );
+
+  Widget get _loadError => Card(
+    color: ColorScheme.of(context).errorContainer,
     child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.auto_awesome_outlined, size: 52),
-          const SizedBox(height: 16),
-          Text(AiRecommendationRepository.lastError ?? '还没有生成 AI 精选'),
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: () => Get.toNamed('/aiRecommendationSettings'),
-            child: const Text('去配置'),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(12),
+      child: Text('刷新失败，继续显示上次结果：${widget.error}'),
     ),
   );
 
@@ -137,7 +236,7 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
     final source = feed.source == 'local' ? '本机生成' : 'VPS';
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         child: Row(
           children: [
             const Icon(Icons.auto_awesome),
@@ -148,10 +247,27 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
                 '${time.month.toString().padLeft(2, '0')}-'
                 '${time.day.toString().padLeft(2, '0')} '
                 '${time.hour.toString().padLeft(2, '0')}:'
-                '${time.minute.toString().padLeft(2, '0')}',
+                '${time.minute.toString().padLeft(2, '0')} · '
+                '$itemCount 条',
               ),
             ),
-            Text('$itemCount 条'),
+            if (widget.embedded) ...[
+              IconButton(
+                tooltip: '配置 AI 精选',
+                onPressed: () => Get.toNamed('/aiRecommendationSettings'),
+                icon: const Icon(Icons.tune),
+              ),
+              IconButton(
+                tooltip: '刷新 AI 精选',
+                onPressed: widget.running ? null : widget.onRefresh,
+                icon: widget.running
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+              ),
+            ],
           ],
         ),
       ),
@@ -317,17 +433,5 @@ class _AiRecommendationsPageState extends State<AiRecommendationsPage> {
       title: candidate.title,
       dimension: dimension,
     );
-  }
-
-  Future<void> _refresh() async {
-    setState(() => _running = true);
-    try {
-      final feed = await AiRecommendationService().refresh();
-      if (mounted) setState(() => _feed = feed);
-    } catch (error) {
-      SmartDialog.showToast(error.toString());
-    } finally {
-      if (mounted) setState(() => _running = false);
-    }
   }
 }

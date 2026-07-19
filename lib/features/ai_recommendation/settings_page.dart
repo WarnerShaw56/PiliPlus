@@ -41,6 +41,7 @@ class _AiRecommendationSettingsPageState
   final _apiKeyController = TextEditingController();
 
   late bool _enabled = AiRecommendationPreferences.enabled;
+  late bool _replaceHome = AiRecommendationPreferences.replacesHome;
   late AiRecommendationMode _mode = AiRecommendationPreferences.mode;
   late AiApiFormat _apiFormat = AiRecommendationPreferences.apiFormat;
   late int _dailyHour = AiRecommendationPreferences.dailyHour;
@@ -98,6 +99,17 @@ class _AiRecommendationSettingsPageState
             title: const Text('每日自动更新'),
             subtitle: const Text('在设定时间后，应用当天首次运行时自动补跑'),
             secondary: const Icon(Icons.schedule_outlined),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _replaceHome,
+            onChanged: (value) => setState(() => _replaceHome = value),
+            title: const Text('用 AI 精选替换首页推荐'),
+            subtitle: const Text(
+              '首页“推荐”页将只显示 AI 分组结果，不再加载短视频推荐流；'
+              '若曾隐藏该页签会自动恢复；与每日自动更新互不影响，重启应用后生效',
+            ),
+            secondary: const Icon(Icons.home_outlined),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<AiRecommendationMode>(
@@ -328,6 +340,11 @@ class _AiRecommendationSettingsPageState
         SettingBoxKey.aiRcmdCandidateCount: candidateCount,
         SettingBoxKey.aiRcmdResultCount: resultCount,
         SettingBoxKey.aiRcmdRemoteUrl: _remoteUrlController.text.trim(),
+        SettingBoxKey.aiRcmdHomeSource:
+            (_replaceHome
+                    ? AiRecommendationHomeSource.ai
+                    : AiRecommendationHomeSource.bilibili)
+                .name,
       }),
       if (_mode == AiRecommendationMode.local)
         AiRecommendationSecretStore.writeApiKey(_apiKeyController.text),

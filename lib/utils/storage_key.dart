@@ -58,6 +58,7 @@ abstract final class SettingBoxKey {
       aiRcmdCandidateCount = 'aiRcmdCandidateCount',
       aiRcmdResultCount = 'aiRcmdResultCount',
       aiRcmdRemoteUrl = 'aiRcmdRemoteUrl',
+      aiRcmdHomeSource = 'aiRcmdHomeSource',
       minDurationForRcmd = 'minDurationForRcmd',
       minPlayForRcmd = 'minPlayForRcmd',
       minLikeRatioForRecommend = 'minLikeRatioForRecommend',
