@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://piliplus.example/schemas/ai-recommendation-feed-v1.json",
+  "title": "PiliPlus AI recommendation feed",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "generated_at", "source", "items"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source": { "type": "string", "enum": ["local", "vps"] },
+    "preference_snapshot": { "type": "string" },
+    "groups": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "name", "source", "items"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "intent": { "type": "string" },
+          "prompt": { "type": "string" },
+          "source": {
+            "type": "string",
+            "enum": ["recommendation", "search", "hybrid"]
+          },
+          "search_queries": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 12
+          },
+          "result_count": { "type": "integer", "minimum": 1, "maximum": 30 },
+          "minimum_duration_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 14400
+          },
+          "enabled": { "type": "boolean" },
+          "pipeline": { "type": "object" },
+          "error": { "type": ["string", "null"] },
+          "items": { "$ref": "#/properties/items" }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "bvid",
+          "title",
+          "duration",
+          "owner_name",
+          "score",
+          "reason"
+        ],
+        "properties": {
+          "bvid": { "type": "string", "minLength": 1 },
+          "aid": { "type": ["integer", "null"] },
+          "cid": { "type": ["integer", "null"] },
+          "title": { "type": "string" },
+          "cover": { "type": ["string", "null"] },
+          "duration": { "type": "integer", "minimum": 0 },
+          "pubdate": { "type": ["integer", "null"] },
+          "owner_mid": { "type": ["integer", "null"] },
+          "owner_name": { "type": "string" },
+          "view": { "type": ["integer", "null"] },
+          "like": { "type": ["integer", "null"] },
+          "danmu": { "type": ["integer", "null"] },
+          "is_followed": { "type": "boolean" },
+          "source_reason": { "type": ["string", "null"] },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "reason": { "type": "string" },
+          "summary": { "type": ["string", "null"] },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 4
+          }
+        }
+      }
+    }
+  }
+}

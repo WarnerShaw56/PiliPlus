@@ -8,6 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 List<SettingsModel> get recommendSettings => [
+  NormalModel(
+    title: 'AI 每日精选',
+    subtitle: '按偏好筛选视频，可直接替换首页推荐流',
+    leading: const Icon(Icons.auto_awesome_outlined),
+    onTap: (_, _) => Get.toNamed('/aiRecommendationSettings'),
+  ),
   const SwitchModel(
     title: '首页使用app端推荐',
     subtitle: '若web端推荐不太符合预期，可尝试切换至app端推荐',

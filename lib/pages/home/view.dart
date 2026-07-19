@@ -2,6 +2,8 @@ import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/custom_height_widget.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
+import 'package:PiliPlus/features/ai_recommendation/preferences.dart';
+import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/pages/common/common_page.dart';
 import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
@@ -44,7 +46,17 @@ class _HomePageState extends CommonPageState<HomePage>
           width: double.infinity,
           child: TabBar(
             controller: _homeController.tabController,
-            tabs: _homeController.tabs.map((e) => Tab(text: e.label)).toList(),
+            tabs: _homeController.tabs
+                .map(
+                  (tab) => Tab(
+                    text:
+                        tab == HomeTabType.rcmd &&
+                            AiRecommendationPreferences.replacesHome
+                        ? 'AI 精选'
+                        : tab.label,
+                  ),
+                )
+                .toList(),
             isScrollable: true,
             dividerColor: Colors.transparent,
             dividerHeight: 0,
