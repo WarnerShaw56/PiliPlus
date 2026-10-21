@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:PiliPlus/features/ai_recommendation/model.dart';
 import 'package:PiliPlus/features/ai_recommendation/preferences.dart';
 import 'package:PiliPlus/features/ai_recommendation/remote_client.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 

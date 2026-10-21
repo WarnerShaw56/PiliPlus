@@ -94,6 +94,8 @@ jobs:
       - name: Apply project patches
         shell: pwsh
         run: lib/scripts/patch.ps1 ${{ matrix.platform }}
+      - name: Check AI settings rendering
+        run: flutter test test/features/ai_recommendation/settings_page_test.dart --no-pub
       - name: Build Android
         if: matrix.platform == 'android'
         run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --no-pub
