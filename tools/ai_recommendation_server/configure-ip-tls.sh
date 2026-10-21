@@ -28,4 +28,3 @@ nginx -t
 systemctl reload nginx
 systemctl daemon-reload
 systemctl enable --now piliplus-tls-renew.timer
-
