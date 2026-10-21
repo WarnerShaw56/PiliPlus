@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libayatana-appindicator3-dev webkit2gtk-4.1 libasound2-dev libmpv-dev
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libasound2-dev libmpv-dev
         shell: bash
 
       - name: Setup flutter
@@ -43,7 +43,7 @@ jobs:
 
         #TODO: deb and rpm packages need to be build
       - name: Build Linux
-        run: flutter build linux --release -v --pub --dart-define-from-file=pili_release.json
+        run: flutter build linux --release --dart-define-from-file=pili_release.json --no-pub
 
       - name: Package .tar.gz
         run: tar -zcvf PiliPlus_linux_${{ env.version }}_amd64.tar.gz -C build/linux/x64/release/bundle .

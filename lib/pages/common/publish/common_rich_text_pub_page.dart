@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:io' show File, HttpException;
 
+import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/button/toolbar_icon_button.dart';
 import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart';
@@ -28,12 +29,12 @@ import 'package:cached_network_image_ce/cached_network_image.dart'
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:easy_debounce/easy_throttle.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract class CommonRichTextPubPage
     extends CommonPublishPage<List<RichTextItem>> {
@@ -219,41 +220,43 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
     }
   }
 
-  void onPickImage([VoidCallback? callback]) {
+  void onPickImageThrottle([VoidCallback? callback]) {
     EasyThrottle.throttle(
       'imagePicker',
       const Duration(milliseconds: 500),
-      () async {
-        try {
-          final pickedFiles = await imagePicker.pickMultiImage(
-            limit: limit,
-            imageQuality: 100,
-            requestFullMetadata: false,
-          );
-          if (pickedFiles.isNotEmpty) {
-            for (int i = 0; i < pickedFiles.length; i++) {
-              if (imageList.length == limit) {
-                SmartDialog.showToast('最多选择$limit张图片');
-                break;
-              } else {
-                imageList.add(FilePicModel(path: pickedFiles[i].path));
-              }
-            }
-            callback?.call();
-          }
-        } catch (e) {
-          SmartDialog.showToast(e.toString());
-        }
-      },
+      () => _onPickImage(callback),
     );
+  }
+
+  Future<void> _onPickImage([VoidCallback? callback]) async {
+    try {
+      final pickedFiles = await imagePicker.pickMultiImage(
+        limit: limit,
+        imageQuality: 100,
+        requestFullMetadata: false,
+      );
+      if (pickedFiles.isNotEmpty) {
+        for (int i = 0; i < pickedFiles.length; i++) {
+          if (imageList.length == limit) {
+            SmartDialog.showToast('最多选择$limit张图片');
+            break;
+          } else {
+            imageList.add(FilePicModel(path: pickedFiles[i].path));
+          }
+        }
+        callback?.call();
+      }
+    } catch (e) {
+      SmartDialog.showToast(e.toString());
+    }
   }
 
   void onChooseEmote(dynamic emote, double? width, double? height) {
     if (emote is e.Emote) {
       final isTextEmote = width == null;
       onInsertText(
-        isTextEmote ? emote.text! : '\uFFFC',
-        RichTextType.emoji,
+        isTextEmote ? emote.text! : Style.placeHolder,
+        .emoji,
         rawText: emote.text!,
         emote: isTextEmote
             ? null
@@ -265,8 +268,8 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
       );
     } else if (emote is Emoticon) {
       onInsertText(
-        '\uFFFC',
-        RichTextType.emoji,
+        Style.placeHolder,
+        .emoji,
         rawText: emote.emoji!,
         emote: Emote(
           url: emote.url!,
@@ -282,13 +285,13 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
     final list = <Map<String, dynamic>>[];
     for (final e in editController.items) {
       switch (e.type) {
-        case RichTextType.text || RichTextType.composing || RichTextType.common:
+        case .text || .composing || .common || .latex:
           list.add({
             "raw_text": e.text,
             "type": 1,
             "biz_id": "",
           });
-        case RichTextType.at:
+        case .at:
           list
             ..add({
               "raw_text": '@${e.rawText}',
@@ -300,13 +303,13 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
               "type": 1,
               "biz_id": "",
             });
-        case RichTextType.emoji:
+        case .emoji:
           list.add({
             "raw_text": e.rawText,
             "type": 9,
             "biz_id": "",
           });
-        case RichTextType.vote:
+        case .vote:
           list
             ..add({
               "raw_text": e.rawText,
@@ -324,11 +327,13 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
   }
 
   late double _mentionOffset = 0;
+  MentionItem? get topMentionItem => null;
   Future<void>? onMention([bool fromClick = false]) async {
     final res = await DynMentionPanel.onDynMention(
       context,
       offset: _mentionOffset,
       onCachePos: (offset) => _mentionOffset = offset,
+      top: topMentionItem,
     );
     if (res != null) {
       if (res is MentionItem) {
@@ -346,7 +351,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
   void _onInsertUser(MentionItem e, bool fromClick) {
     onInsertText(
       '@${e.name} ',
-      RichTextType.at,
+      .at,
       rawText: e.name,
       id: e.uid,
       fromClick: fromClick,
@@ -374,7 +379,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
       TextEditingDelta delta;
 
       if (selection.isCollapsed) {
-        if (type == RichTextType.at && fromClick == false) {
+        if (type == .at && fromClick == false) {
           delta = RichTextEditingDeltaReplacement(
             oldText: oldValue.text,
             replacementText: text,
@@ -464,13 +469,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
       final isEmoji = panelType.value == PanelType.emoji;
       return ToolbarIconButton(
         tooltip: isEmoji ? '输入' : '表情',
-        onPressed: () {
-          if (isEmoji) {
-            updatePanelType(PanelType.keyboard);
-          } else {
-            updatePanelType(PanelType.emoji);
-          }
-        },
+        onPressed: () => updatePanelType(isEmoji ? .keyboard : .emoji),
         icon: isEmoji
             ? const Icon(Icons.keyboard, size: 22)
             : const Icon(Icons.emoji_emotions, size: 22),
@@ -491,13 +490,7 @@ abstract class CommonRichTextPubPageState<T extends CommonRichTextPubPage>
       final isMore = panelType.value == PanelType.more;
       return ToolbarIconButton(
         tooltip: isMore ? '输入' : '更多',
-        onPressed: () {
-          if (isMore) {
-            updatePanelType(PanelType.keyboard);
-          } else {
-            updatePanelType(PanelType.more);
-          }
-        },
+        onPressed: () => updatePanelType(isMore ? .keyboard : .more),
         icon: isMore
             ? const Icon(Icons.keyboard, size: 22)
             : const Icon(Icons.add_circle_outline, size: 22),

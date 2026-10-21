@@ -4,13 +4,12 @@ import 'package:PiliPlus/common/widgets/flutter/pop_scope.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
+import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/http/fav.dart';
 import 'package:PiliPlus/http/loading_state.dart';
 import 'package:PiliPlus/models/common/fav_order_type.dart';
 import 'package:PiliPlus/models_new/fav/fav_detail/media.dart';
 import 'package:PiliPlus/models_new/fav/fav_folder/list.dart';
-import 'package:PiliPlus/pages/common/fab_mixin.dart'
-    show NoRightMarginFabLocation;
 import 'package:PiliPlus/pages/dynamics_repost/view.dart';
 import 'package:PiliPlus/pages/fav_detail/controller.dart';
 import 'package:PiliPlus/pages/fav_detail/widget/fav_video_card.dart';
@@ -19,9 +18,10 @@ import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/share_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 
 class FavDetailPage extends StatefulWidget {
   const FavDetailPage({super.key});
@@ -60,12 +60,11 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
               _favDetailController.handleSelect();
             }
           },
-          child: Scaffold(
-            resizeToAvoidBottomInset: false,
-            floatingActionButtonLocation: const NoRightMarginFabLocation(),
-            floatingActionButton: Padding(
-              padding: const EdgeInsets.only(
-                right: kFloatingActionButtonMargin,
+          child: SimpleScaffold(
+            fab: Padding(
+              padding: .only(
+                right: kFloatingActionButtonMargin + padding.right,
+                bottom: kFloatingActionButtonMargin + padding.bottom,
               ),
               child: Obx(
                 () => _favDetailController.folderInfo.value.mediaCount > 0
@@ -206,6 +205,23 @@ class _FavDetailPageState extends State<FavDetailPage> with GridMixin {
                 icon: const Icon(Icons.share),
               );
       }),
+      Builder(
+        builder: (context) => PopupMenuButton<bool>(
+          icon: _favDetailController.pageDesc
+              ? const Icon(MdiIcons.sortNumericDescending)
+              : const Icon(MdiIcons.sortNumericAscending),
+          initialValue: _favDetailController.pageDesc,
+          tooltip: '页码顺序',
+          onSelected: (value) {
+            _favDetailController.updatePageOrder(value);
+            (context as Element).markNeedsBuild();
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: false, child: Text('正序')),
+            PopupMenuItem(value: true, child: Text('倒序')),
+          ],
+        ),
+      ),
       Obx(
         () {
           return PopupMenuButton<FavOrderType>(

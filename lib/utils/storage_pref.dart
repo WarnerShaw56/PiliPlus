@@ -10,6 +10,7 @@ import 'package:PiliPlus/models/common/dynamic/dynamics_type.dart';
 import 'package:PiliPlus/models/common/dynamic/up_panel_position.dart';
 import 'package:PiliPlus/models/common/follow_order_type.dart';
 import 'package:PiliPlus/models/common/member/tab_type.dart';
+import 'package:PiliPlus/models/common/mine_tab_type.dart';
 import 'package:PiliPlus/models/common/msg/msg_unread_type.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/models/common/reply/reply_sort_type.dart';
@@ -26,7 +27,7 @@ import 'package:PiliPlus/models/common/video/video_decode_type.dart';
 import 'package:PiliPlus/models/common/video/video_quality.dart';
 import 'package:PiliPlus/models/user/danmaku_rule.dart';
 import 'package:PiliPlus/models/user/info.dart';
-import 'package:PiliPlus/pages/setting/pages/fullscreen_sc_size.dart'
+import 'package:PiliPlus/pages/setting/pages/fullscreen_sc.dart'
     show kFullScreenSCWidth;
 import 'package:PiliPlus/plugin/pl_player/models/audio_output_type.dart';
 import 'package:PiliPlus/plugin/pl_player/models/bottom_progress_behavior.dart';
@@ -44,9 +45,9 @@ import 'package:PiliPlus/utils/utils.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flex_seed_scheme/flex_seed_scheme.dart' show FlexSchemeVariant;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_ce/hive.dart';
+import 'package:material_ui/material_ui.dart';
 
 abstract final class Pref {
   static final Box _setting = GStorage.setting;
@@ -246,26 +247,6 @@ abstract final class Pref {
   );
 
   static List<VideoDecodeFormatType> get preferCodecs {
-    // TODO: remove next 2 version
-    if (_setting.get('defaultDecode') case String codecStr) {
-      String? codecStr2 = _setting.get('secondDecode');
-      _setting.deleteAll(const ['defaultDecode', 'secondDecode']);
-      final codecs = [
-        VideoDecodeFormatType.values.firstWhere(
-          (i) => i.codes.contains(codecStr),
-        ),
-        if (codecStr2 != null && codecStr2 != codecStr)
-          VideoDecodeFormatType.values.firstWhere(
-            (i) => i.codes.contains(codecStr2),
-          ),
-      ];
-      _setting.put(
-        SettingBoxKey.preferCodecs,
-        codecs.map((i) => i.name).toList(),
-      );
-      return codecs;
-    }
-
     final codecs = _setting.get(SettingBoxKey.preferCodecs);
     if (codecs is List) {
       return codecs.map((i) => VideoDecodeFormatType.values.byName(i)).toList();
@@ -273,11 +254,17 @@ abstract final class Pref {
     return const <VideoDecodeFormatType>[.AVC, .AV1];
   }
 
+  static List<VideoDecodeFormatType> get preferCodecsCellular {
+    final codecs = _setting.get(SettingBoxKey.preferCodecsCellular);
+    if (codecs is List) {
+      return codecs.map((i) => VideoDecodeFormatType.values.byName(i)).toList();
+    }
+    return preferCodecs;
+  }
+
   static String get hardwareDecoding => _setting.get(
     SettingBoxKey.hardwareDecoding,
-    defaultValue: Platform.isAndroid
-        ? HwDecType.androidDefault
-        : HwDecType.auto.hwdec,
+    defaultValue: HwDecType.kHwdec,
   );
 
   static String get videoSync =>
@@ -326,9 +313,6 @@ abstract final class Pref {
 
   static double get blockLimit =>
       _setting.get(SettingBoxKey.blockLimit, defaultValue: 0.0);
-
-  static double get refreshDragPercentage =>
-      _setting.get(SettingBoxKey.refreshDragPercentage, defaultValue: 0.25);
 
   static double get refreshDisplacement => _setting.get(
     SettingBoxKey.refreshDisplacement,
@@ -587,8 +571,26 @@ abstract final class Pref {
     defaultValue: LiveQuality.superHD.code,
   );
 
-  static int get appFontWeight =>
-      _setting.get(SettingBoxKey.appFontWeight, defaultValue: -1);
+  static FontWeight get appFontWeight {
+    // TODO: remove next 2 version
+    const appFontWeightV1 = 'appFontWeight';
+    final int? valV1 = _setting.get(appFontWeightV1);
+    if (valV1 != null) {
+      _setting.delete(appFontWeightV1);
+      if (valV1 == -1) {
+        return .normal;
+      } else {
+        _setting.put(SettingBoxKey.appFontWeightV2, valV1);
+        return .values[valV1];
+      }
+    }
+
+    final int? val = _setting.get(SettingBoxKey.appFontWeightV2);
+    if (val == null) {
+      return .normal;
+    }
+    return .values[val];
+  }
 
   static bool get enableDragSubtitle =>
       _setting.get(SettingBoxKey.enableDragSubtitle, defaultValue: false);
@@ -746,6 +748,12 @@ abstract final class Pref {
         defaultValue: ReplySortType.hot.index,
       )];
 
+  static ReplySortType get reply2SortType =>
+      ReplySortType.values[_setting.get(
+        SettingBoxKey.reply2SortType,
+        defaultValue: ReplySortType.time.index,
+      )];
+
   static DynamicBadgeMode get dynamicBadgeMode =>
       DynamicBadgeMode.values[_setting.get(
         SettingBoxKey.dynamicBadgeMode,
@@ -819,6 +827,14 @@ abstract final class Pref {
   static double get bufferSec =>
       _setting.get(SettingBoxKey.bufferSec, defaultValue: 16.0);
 
+  /// 直播流前向缓冲区大小（MB），0 表示跟随 [bufferSize] 的两倍
+  static double get liveBufferSize =>
+      _setting.get(SettingBoxKey.liveBufferSize, defaultValue: 0.0);
+
+  /// 直播流缓冲时长上限（s），0 表示不限制
+  static double get liveBufferSec =>
+      _setting.get(SettingBoxKey.liveBufferSec, defaultValue: 0.0);
+
   static Map<String, String> initBuffer([double playbackSpeed = 1.0]) {
     final bufSec = Pref.bufferSec * playbackSpeed;
     final bufSiz = (Pref.bufferSize * 0x100000).toStringAsFixed(0);
@@ -831,12 +847,39 @@ abstract final class Pref {
     };
   }
 
-  static Map<String, String> initLiveBuffer() {
-    return {
+  /// 直播流无后向缓冲，全部给前向（mpv 的 --demuxer-max-bytes 与
+  /// --demuxer-max-back-bytes）。未单独设置时保持旧实现的默认值：
+  /// 前向缓冲为 [bufferSize] 的两倍且不限制时长。
+  static Map<String, String> initLiveBuffer() => buildLiveBuffer(
+    sizeMb: liveBufferSize,
+    sec: liveBufferSec,
+    fallbackSizeMb: bufferSize,
+  );
+
+  /// 构造直播流使用的 mpv 额外参数。
+  ///
+  /// [sizeMb] 为前向缓冲大小（MB），小于等于 0 时使用
+  /// [fallbackSizeMb]（缺省为 [bufferSize]）的两倍；
+  /// [sec] 为缓冲时长上限（s），小于等于 0 时不限制。
+  @visibleForTesting
+  static Map<String, String> buildLiveBuffer({
+    double sizeMb = 0,
+    double sec = 0,
+    double? fallbackSizeMb,
+  }) {
+    final effectiveSizeMb = sizeMb > 0
+        ? sizeMb
+        : (fallbackSizeMb ?? bufferSize) * 2;
+    final buffer = <String, String>{
       'cache': 'yes',
-      'demuxer-max-bytes': (Pref.bufferSize * 0x200000).toStringAsFixed(0),
+      'demuxer-max-bytes': (effectiveSizeMb * 0x100000).toStringAsFixed(0),
       'demuxer-max-back-bytes': '0',
     };
+    if (sec > 0) {
+      buffer['cache-secs'] = sec.toStringAsFixed(3);
+      buffer['demuxer-hysteresis-secs'] = (sec / 1.5).toStringAsFixed(3);
+    }
+    return buffer;
   }
 
   static String get audioOutput => _setting.get(
@@ -918,13 +961,25 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.silentDownImg, defaultValue: false);
 
   static String get buvid {
-    String? buvid = _localCache.get(LocalCacheKey.buvid);
-    if (buvid == null) {
-      buvid = LoginUtils.generateBuvid();
-      _localCache.put(LocalCacheKey.buvid, buvid);
+    String? value = _setting.get(SettingBoxKey.buvid);
+    if (value != null) return value;
+
+    value = _localCache.get(SettingBoxKey.buvid);
+    if (value != null) {
+      _setting
+          .put(SettingBoxKey.buvid, value)
+          .whenComplete(() => _localCache.delete(SettingBoxKey.buvid));
+      return value;
     }
-    return buvid;
+
+    if (value == null) {
+      buvid = value = LoginUtils.generateBuvid();
+    }
+
+    return value;
   }
+
+  static set buvid(String value) => _setting.put(SettingBoxKey.buvid, value);
 
   static bool get showMemberShop =>
       _setting.get(SettingBoxKey.showMemberShop, defaultValue: false);
@@ -939,6 +994,15 @@ abstract final class Pref {
     SettingBoxKey.fullScreenSCWidth,
     defaultValue: kFullScreenSCWidth,
   );
+
+  static bool get enableFullScreenSC =>
+      _setting.get(SettingBoxKey.enableFullScreenSC, defaultValue: true);
+
+  static double get fullScreenSCOpacity =>
+      _setting.get(SettingBoxKey.fullScreenSCOpacity, defaultValue: 1.0);
+
+  static double get fullScreenSCScale =>
+      _setting.get(SettingBoxKey.fullScreenSCScale, defaultValue: 1.0);
 
   static bool get minimizeOnExit =>
       _setting.get(SettingBoxKey.minimizeOnExit, defaultValue: true);
@@ -989,6 +1053,8 @@ abstract final class Pref {
 
   static String? get downloadPath => _setting.get(SettingBoxKey.downloadPath);
 
+  static String? get imageSavePath => _setting.get(SettingBoxKey.imageSavePath);
+
   static String? get liveCdnUrl => _setting.get(SettingBoxKey.liveCdnUrl);
 
   static bool get showBatteryLevel => _setting.get(
@@ -1032,4 +1098,25 @@ abstract final class Pref {
       _setting.get(SettingBoxKey.maxVolume, defaultValue: 2.0);
 
   static List? get liveStream => _setting.get(SettingBoxKey.liveStream);
+
+  static bool get enableDocProvider =>
+      _setting.get(SettingBoxKey.enableDocProvider, defaultValue: false);
+
+  static bool get enableEmoteTooltip =>
+      _setting.get(SettingBoxKey.enableEmoteTooltip, defaultValue: false);
+
+  static Set<MineTabType> get mineTabs =>
+      (_setting.get(SettingBoxKey.mineTabs) as List?)
+          ?.map<MineTabType>((index) => .values[index])
+          .toSet() ??
+      MineTabType.kDefault;
+
+  static bool get blockAtOnlyReply =>
+      _setting.get(SettingBoxKey.blockAtOnlyReply, defaultValue: false);
+
+  static int? get blockReplyAtCount =>
+      _setting.get(SettingBoxKey.blockReplyAtCount);
+
+  static bool get filterIntro =>
+      _setting.get(SettingBoxKey.filterIntro, defaultValue: false);
 }

@@ -1,11 +1,15 @@
+import 'package:PiliPlus/common/widgets/custom_icon.dart';
 import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/setting/models/model.dart';
+import 'package:PiliPlus/utils/login_utils.dart';
 import 'package:PiliPlus/utils/recommend_filter.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
+import 'package:PiliPlus/utils/storage_pref.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 List<SettingsModel> get recommendSettings => [
   NormalModel(
@@ -13,6 +17,12 @@ List<SettingsModel> get recommendSettings => [
     subtitle: '按偏好筛选视频，可直接替换首页推荐流',
     leading: const Icon(Icons.auto_awesome_outlined),
     onTap: (_, _) => Get.toNamed('/aiRecommendationSettings'),
+  ),
+  NormalModel(
+    title: 'buvid',
+    leading: const Icon(CustomIcons.identifier_circle),
+    getSubtitle: () => LoginUtils.buvid,
+    onTap: _showBuvidDialog,
   ),
   const SwitchModel(
     title: '首页使用app端推荐',
@@ -60,6 +70,7 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minLikeRatioForRecommend,
     values: [0, 1, 2, 3, 4],
     onChanged: (value) => RecommendFilter.minLikeRatioForRecommend = value,
+    filterScope: 'Web推荐、热门、分区',
   ),
   getBanWordModel(
     title: '标题关键词过滤',
@@ -68,14 +79,16 @@ List<SettingsModel> get recommendSettings => [
       RecommendFilter.rcmdRegExp = value;
       RecommendFilter.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: '推荐、热门、分区、相关视频',
   ),
   getBanWordModel(
-    title: 'App推荐/热门/排行榜: 视频分区关键词过滤',
+    title: '分区关键词过滤',
     key: SettingBoxKey.banWordForZone,
     onChanged: (value) {
       VideoHttp.zoneRegExp = value;
       VideoHttp.enableFilter = value.pattern.isNotEmpty;
     },
+    banScope: 'App推荐、热门、分区',
   ),
   getVideoFilterSelectModel(
     title: '视频时长',
@@ -83,12 +96,14 @@ List<SettingsModel> get recommendSettings => [
     key: SettingBoxKey.minDurationForRcmd,
     values: [0, 30, 60, 90, 120],
     onChanged: (value) => RecommendFilter.minDurationForRcmd = value,
+    filterScope: '推荐、相关视频',
   ),
   getVideoFilterSelectModel(
     title: '播放量',
     key: SettingBoxKey.minPlayForRcmd,
     values: [0, 50, 100, 500, 1000],
     onChanged: (value) => RecommendFilter.minPlayForRcmd = value,
+    filterScope: '推荐、热门、分区、相关视频',
   ),
   SwitchModel(
     title: '已关注UP豁免推荐过滤',
@@ -107,3 +122,45 @@ List<SettingsModel> get recommendSettings => [
     onChanged: (value) => RecommendFilter.applyFilterToRelatedVideos = value,
   ),
 ];
+
+void _showBuvidDialog(BuildContext context, VoidCallback setState) {
+  String buvid = LoginUtils.buvid;
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('buvid'),
+      content: TextFormField(
+        autofocus: true,
+        initialValue: buvid,
+        onChanged: (value) => buvid = value,
+        inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r"\s"))],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Get.back();
+            Pref.buvid = LoginUtils.buvid = LoginUtils.generateBuvid();
+            setState();
+          },
+          child: const Text('随机'),
+        ),
+        TextButton(
+          onPressed: Get.back,
+          child: Text(
+            '取消',
+            style: TextStyle(color: ColorScheme.of(context).outline),
+          ),
+        ),
+        TextButton(
+          onPressed: () {
+            Get.back();
+            if (buvid.isEmpty) return;
+            Pref.buvid = LoginUtils.buvid = buvid;
+            setState();
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    ),
+  );
+}

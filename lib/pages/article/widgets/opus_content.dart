@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:PiliPlus/common/assets.dart';
+import 'package:PiliPlus/common/widgets/badge.dart';
+import 'package:PiliPlus/common/widgets/dialog/simple_dialog_option.dart';
+import 'package:PiliPlus/common/widgets/emote_tooltip.dart';
 import 'package:PiliPlus/common/widgets/gesture/tap_gesture_recognizer.dart';
 import 'package:PiliPlus/common/widgets/image/cached_network_svg_image.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
@@ -8,10 +11,10 @@ import 'package:PiliPlus/common/widgets/image_grid/image_grid_view.dart';
 import 'package:PiliPlus/common/widgets/image_viewer/hero.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
-import 'package:PiliPlus/models/common/image_type.dart';
 import 'package:PiliPlus/models/dynamics/article_content_model.dart'
     show ArticleContentModel, Rich, Style, Word, Node;
 import 'package:PiliPlus/models/dynamics/result.dart';
+import 'package:PiliPlus/pages/article/widgets/sliver_list_ext.dart';
 import 'package:PiliPlus/pages/dynamics/widgets/vote.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/num_ext.dart';
@@ -21,10 +24,10 @@ import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_navigation/src/extension_navigation.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:re_highlight/languages/all.dart';
 import 'package:re_highlight/re_highlight.dart';
 import 'package:re_highlight/styles/github-dark.dart';
@@ -34,34 +37,72 @@ class OpusContent extends StatelessWidget {
   final List<ArticleContentModel> opus;
   final ValueGetter<List<SourceModel>> images;
   final double maxWidth;
+  final String opusId;
+  final bool reverse;
 
   const OpusContent({
     super.key,
     required this.opus,
     required this.images,
     required this.maxWidth,
+    required this.opusId,
+    required this.reverse,
   });
 
   static InlineSpan _node2Widget({
     required Node item,
-    required ColorScheme colorScheme,
     bool isQuote = false,
+    required String opusId,
+    required ColorScheme colorScheme,
     required ValueGetter<double> surfaceLuminance,
   }) {
     switch (item.type) {
       case 'TEXT_NODE_TYPE_RICH' when (item.rich != null):
-        Rich rich = item.rich!;
+        final rich = item.rich!;
         switch (rich.type) {
           case 'RICH_TEXT_NODE_TYPE_EMOJI':
             Emoji emoji = rich.emoji!;
             final size = 20.0 * emoji.size;
             return WidgetSpan(
-              child: NetworkImgLayer(
-                width: size,
-                height: size,
-                src: emoji.url,
-                type: ImageType.emote,
+              rawText: rich.origText,
+              child: emoteTooltipBuilder(
+                url: emoji.url,
+                triggerMode: .tap,
+                emote: rich.origText,
+                jumpUrl: emoji.jumpUrl,
+                colorScheme: colorScheme,
+                child: NetworkImgLayer(
+                  width: size,
+                  height: size,
+                  src: emoji.url,
+                  type: .emote,
+                ),
               ),
+            );
+          case 'RICH_TEXT_NODE_TYPE_LOTTERY':
+            return TextSpan(
+              children: [
+                WidgetSpan(
+                  alignment: .middle,
+                  child: Icon(
+                    Icons.redeem_rounded,
+                    size: 16,
+                    color: colorScheme.primary,
+                  ),
+                ),
+                TextSpan(
+                  text: '${rich.origText} ',
+                  style: TextStyle(color: colorScheme.primary),
+                  recognizer: NoDeadlineTapGestureRecognizer()
+                    ..onTap = () => Get.toNamed(
+                      '/webview',
+                      parameters: {
+                        'url':
+                            'https://www.bilibili.com/h5/lottery/result?business_id=$opusId',
+                      },
+                    ),
+                ),
+              ],
             );
           default:
             return TextSpan(
@@ -170,7 +211,8 @@ class OpusContent extends StatelessWidget {
 
     late final highlight = Highlight()..registerLanguages(builtinAllLanguages);
 
-    return SliverList.separated(
+    return SliverListExt.separated(
+      reverse: reverse,
       itemCount: opus.length,
       itemBuilder: (context, index) {
         final element = opus[index];
@@ -178,19 +220,34 @@ class OpusContent extends StatelessWidget {
           switch (element.paraType) {
             case 1 || 4:
               final isQuote = element.paraType == 4;
+              List<InlineSpan>? spans;
+              if (element.text?.nodes case final nodes?) {
+                spans = nodes
+                    .map(
+                      (item) => _node2Widget(
+                        item: item,
+                        opusId: opusId,
+                        colorScheme: colorScheme,
+                        surfaceLuminance: getSurfaceLuminance,
+                      ),
+                    )
+                    .toList();
+              } else if (element.blockquote?.children case final children?) {
+                spans = [
+                  for (final child in children)
+                    ...?child.text?.nodes?.map(
+                      (item) => _node2Widget(
+                        item: item,
+                        opusId: opusId,
+                        colorScheme: colorScheme,
+                        surfaceLuminance: getSurfaceLuminance,
+                      ),
+                    ),
+                ];
+              }
               Widget widget = Text.rich(
                 textAlign: element.align == 1 ? TextAlign.center : null,
-                TextSpan(
-                  children: element.text?.nodes
-                      ?.map(
-                        (item) => _node2Widget(
-                          item: item,
-                          colorScheme: colorScheme,
-                          surfaceLuminance: getSurfaceLuminance,
-                        ),
-                      )
-                      .toList(),
-                ),
+                TextSpan(children: spans),
               );
               if (isQuote) {
                 widget = Container(
@@ -223,6 +280,7 @@ class OpusContent extends StatelessWidget {
                 Widget child = CachedNetworkImage(
                   width: width,
                   height: height,
+                  gaplessPlayback: true,
                   memCacheWidth: width.cacheSize(context),
                   imageUrl: ImageUtils.thumbnailUrl(pic.url!, 60),
                   fadeInDuration: const Duration(milliseconds: 120),
@@ -231,7 +289,7 @@ class OpusContent extends StatelessWidget {
                 );
                 if (!(pic.isLongPic ?? false)) {
                   child = fromHero(
-                    tag: pic.url!,
+                    tag: '${pic.url!}$hashCode',
                     child: child,
                   );
                 }
@@ -241,6 +299,7 @@ class OpusContent extends StatelessWidget {
                     imgList: images,
                     initialPage: images.indexWhere((e) => e.url == pic.url),
                     quality: 60,
+                    tag: hashCode.toString(),
                   ),
                   child: child,
                 );
@@ -264,6 +323,7 @@ class OpusContent extends StatelessWidget {
                   fit: .contain,
                   height: height,
                   width: maxWidth,
+                  gaplessPlayback: true,
                   memCacheWidth: maxWidth.cacheSize(context),
                   imageUrl: ImageUtils.thumbnailUrl(pic.url!),
                   placeholder: (_, _) => const SizedBox.shrink(),
@@ -271,6 +331,37 @@ class OpusContent extends StatelessWidget {
               } else {
                 return const Divider();
               }
+            case 5 when (element.list?.children?.isNotEmpty == true):
+              return Text.rich(
+                TextSpan(
+                  children: element.list!.children!.mapIndexed((i, e) {
+                    return TextSpan(
+                      children: [
+                        const WidgetSpan(
+                          child: Icon(MdiIcons.circleMedium),
+                          alignment: .middle,
+                        ),
+                        ...?e.children?.map((child) {
+                          return TextSpan(
+                            children: child.text?.nodes
+                                ?.map(
+                                  (item) => _node2Widget(
+                                    item: item,
+                                    opusId: opusId,
+                                    colorScheme: colorScheme,
+                                    surfaceLuminance: getSurfaceLuminance,
+                                  ),
+                                )
+                                .toList(),
+                          );
+                        }),
+                        if (i < element.list!.items!.length - 1)
+                          const TextSpan(text: '\n'),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              );
             case 5 when (element.list?.items?.isNotEmpty == true):
               return Text.rich(
                 TextSpan(
@@ -574,6 +665,117 @@ class OpusContent extends StatelessWidget {
                       );
                     }).toList(),
                   );
+                case "LINK_CARD_TYPE_EVA3_VIDEO":
+                  final info = element.linkCard!.card!.eva3Video!.info!;
+                  Widget cover = NetworkImgLayer(
+                    width: 104,
+                    height: 65,
+                    src: info.cover,
+                    borderRadius: const .all(.circular(6)),
+                  );
+                  if (info.videoTs?.durationText != null) {
+                    cover = Stack(
+                      clipBehavior: .none,
+                      children: [
+                        cover,
+                        PBadge(
+                          right: 4,
+                          bottom: 4,
+                          type: .gray,
+                          text: info.videoTs?.durationText,
+                        ),
+                      ],
+                    );
+                  }
+                  child = SizedBox(
+                    height: 65,
+                    child: Row(
+                      spacing: 10,
+                      children: [
+                        cover,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: .start,
+                            mainAxisAlignment: .spaceBetween,
+                            children: [
+                              Text(
+                                info.title!,
+                                maxLines: 2,
+                                overflow: .ellipsis,
+                              ),
+                              if (info.statInfos case final statInfos?
+                                  when statInfos.isNotEmpty)
+                                Text(
+                                  statInfos.map((e) => e.text).join('    '),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: colorScheme.outline,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                case "LINK_CARD_TYPE_EVA3_OPUS":
+                  final info = element.linkCard!.card!.eva3Opus!.info!;
+                  final cover = info.pics?.firstOrNull?.src;
+                  child = SizedBox(
+                    height: 65,
+                    child: Row(
+                      spacing: 10,
+                      children: [
+                        if (cover != null && cover.isNotEmpty)
+                          NetworkImgLayer(
+                            width: 104,
+                            height: 65,
+                            src: cover,
+                            borderRadius: const .all(.circular(6)),
+                          ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: .start,
+                            mainAxisAlignment: .spaceBetween,
+                            children: [
+                              Text(
+                                info.title!,
+                                maxLines: 2,
+                                overflow: .ellipsis,
+                              ),
+                              Text.rich(
+                                TextSpan(
+                                  children:
+                                      [
+                                            if (info.badge != null)
+                                              TextSpan(text: info.badge),
+                                            if (info.authorName != null)
+                                              TextSpan(
+                                                text: 'UP: ${info.authorName!}',
+                                              ),
+                                            if (info.view != null)
+                                              TextSpan(text: info.view!),
+                                            if (info.reply != null)
+                                              TextSpan(text: info.reply!),
+                                          ]
+                                          .expand((e) sync* {
+                                            yield const TextSpan(text: ' ');
+                                            yield e;
+                                          })
+                                          .skip(1)
+                                          .toList(),
+                                ),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: colorScheme.outline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 default:
                   throw UnimplementedError(
                     '\nparaType: ${element.paraType},\ncard type: $type',
@@ -598,15 +800,34 @@ class OpusContent extends StatelessWidget {
                               return;
                             }
                             if (type == 'LINK_CARD_TYPE_ITEM_NULL') {
-                              switch (card.itemNull?.text) {
-                                case '视频':
-                                  PiliScheme.videoPush(
-                                    int.parse(card.oid!),
-                                    null,
-                                  );
-                                default:
-                                  PageUtils.pushDynFromId(id: card.oid!);
-                              }
+                              showDialog(
+                                context: context,
+                                builder: (context) => SimpleDialog(
+                                  clipBehavior: .hardEdge,
+                                  contentPadding: const .symmetric(
+                                    vertical: 12,
+                                  ),
+                                  children: [
+                                    DialogOption(
+                                      onPressed: () {
+                                        Get.back();
+                                        PiliScheme.videoPush(
+                                          int.parse(card.oid!),
+                                          null,
+                                        );
+                                      },
+                                      child: const Text('视频'),
+                                    ),
+                                    DialogOption(
+                                      onPressed: () {
+                                        Get.back();
+                                        PageUtils.pushDynFromId(id: card.oid!);
+                                      },
+                                      child: const Text('动态/专栏'),
+                                    ),
+                                  ],
+                                ),
+                              );
                               return;
                             }
                             final url = switch (type) {
@@ -615,6 +836,10 @@ class OpusContent extends StatelessWidget {
                               'LINK_CARD_TYPE_LIVE' => card.live!.jumpUrl,
                               'LINK_CARD_TYPE_OPUS' => card.opus!.jumpUrl,
                               'LINK_CARD_TYPE_MUSIC' => card.music!.jumpUrl,
+                              'LINK_CARD_TYPE_EVA3_VIDEO' =>
+                                card.eva3Video!.info!.jumpUrl,
+                              'LINK_CARD_TYPE_EVA3_OPUS' =>
+                                card.eva3Opus!.info!.jumpUrl,
                               _ => null,
                             };
                             if (url != null && url.isNotEmpty) {
@@ -662,6 +887,7 @@ class OpusContent extends StatelessWidget {
                       .map(
                         (e) => _node2Widget(
                           item: e,
+                          opusId: opusId,
                           colorScheme: colorScheme,
                           surfaceLuminance: getSurfaceLuminance,
                         ),
@@ -740,6 +966,7 @@ Widget moduleBlockedItem(
   Widget icon(double width) {
     return CachedNetworkImage(
       width: width,
+      gaplessPlayback: true,
       memCacheWidth: width.cacheSize(context),
       fit: BoxFit.contain,
       imageUrl: ImageUtils.thumbnailUrl(

@@ -9,8 +9,8 @@ import 'package:PiliPlus/pages/subscription_detail/widget/sub_video_card.dart';
 import 'package:PiliPlus/utils/grid.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class SubDetailPage extends StatefulWidget {
   const SubDetailPage({super.key});
@@ -18,12 +18,12 @@ class SubDetailPage extends StatefulWidget {
   @override
   State<SubDetailPage> createState() => _SubDetailPageState();
 
-  static void toSubDetailPage(
+  static Future<void>? toSubDetailPage(
     int id, {
     String? heroTag,
     SubItemModel? subInfo,
   }) {
-    Get.toNamed(
+    return Get.toNamed(
       '/subDetail',
       arguments: {
         'id': id,

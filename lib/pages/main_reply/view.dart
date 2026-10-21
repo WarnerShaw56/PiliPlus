@@ -1,7 +1,9 @@
 import 'package:PiliPlus/common/skeleton/video_reply.dart';
+import 'package:PiliPlus/common/sliver_single_child_delegate.dart';
 import 'package:PiliPlus/common/style.dart';
 import 'package:PiliPlus/common/widgets/flutter/refresh_indicator.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/http_error.dart';
+import 'package:PiliPlus/common/widgets/scaffold/simple_scaffold.dart';
 import 'package:PiliPlus/common/widgets/sliver/sliver_floating_header.dart';
 import 'package:PiliPlus/common/widgets/view_safe_area.dart';
 import 'package:PiliPlus/grpc/bilibili/main/community/reply/v1.pb.dart'
@@ -16,8 +18,8 @@ import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/num_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:easy_debounce/easy_throttle.dart';
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class MainReplyPage extends StatefulWidget {
   const MainReplyPage({super.key});
@@ -47,29 +49,20 @@ class _MainReplyPageState extends State<MainReplyPage>
   );
 
   late EdgeInsets padding;
+  late ColorScheme colorScheme;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     padding = MediaQuery.viewPaddingOf(context);
+    colorScheme = ColorScheme.of(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = ColorScheme.of(context);
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
+    return SimpleScaffold(
       appBar: AppBar(title: const Text('查看评论')),
-      body: NotificationListener<UserScrollNotification>(
-        onNotification: (notification) {
-          final direction = notification.direction;
-          if (direction == .forward) {
-            showFab();
-          } else if (direction == .reverse) {
-            hideFab();
-          }
-          return false;
-        },
+      body: fabAnimWrapper(
         child: refreshIndicator(
           onRefresh: _controller.onRefresh,
           child: Padding(
@@ -80,20 +73,20 @@ class _MainReplyPageState extends State<MainReplyPage>
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                buildReplyHeader(colorScheme),
-                Obx(
-                  () => _buildBody(colorScheme, _controller.loadingState.value),
-                ),
+                buildReplyHeader(),
+                Obx(() => _buildBody(_controller.loadingState.value)),
               ],
             ),
           ),
         ).constraintWidth(),
       ),
-      floatingActionButtonLocation: const NoBottomPaddingFabLocation(),
-      floatingActionButton: SlideTransition(
+      fab: SlideTransition(
         position: fabAnimation,
         child: Padding(
-          padding: .only(bottom: padding.bottom + kFloatingActionButtonMargin),
+          padding: .only(
+            right: kFloatingActionButtonMargin + padding.right,
+            bottom: kFloatingActionButtonMargin + padding.bottom,
+          ),
           child: FloatingActionButton(
             heroTag: null,
             onPressed: () {
@@ -114,15 +107,14 @@ class _MainReplyPageState extends State<MainReplyPage>
     );
   }
 
-  Widget _buildBody(
-    ColorScheme colorScheme,
-    LoadingState<List<ReplyInfo>?> loadingState,
-  ) {
+  Widget _buildBody(LoadingState<List<ReplyInfo>?> loadingState) {
     return switch (loadingState) {
-      Loading() => SliverPrototypeExtentList.builder(
-        itemCount: 10,
-        itemBuilder: (_, _) => const VideoReplySkeleton(),
-        prototypeItem: const VideoReplySkeleton(),
+      Loading() => const SliverPrototypeExtentList(
+        prototypeItem: VideoReplySkeleton(),
+        delegate: SliverSingleChildDelegate(
+          count: 10,
+          child: VideoReplySkeleton(),
+        ),
       ),
       Success(:final response) =>
         response != null && response.isNotEmpty
@@ -147,14 +139,12 @@ class _MainReplyPageState extends State<MainReplyPage>
                     return ReplyItemGrpc(
                       replyItem: response[index],
                       replyLevel: 1,
-                      replyReply: (replyItem, id) =>
-                          replyReply(context, replyItem, id, colorScheme),
+                      replyReply: throttleReplyReply,
                       onReply: _controller.onReply,
                       onDelete: (item, subIndex) =>
                           _controller.onRemove(index, item, subIndex),
                       upMid: _controller.upMid,
-                      onCheckReply: (item) =>
-                          _controller.onCheckReply(item, isManual: true),
+                      onCheckReply: _controller.onCheckReply,
                       onToggleTop: (item) => _controller.onToggleTop(
                         item,
                         index,
@@ -176,7 +166,7 @@ class _MainReplyPageState extends State<MainReplyPage>
     };
   }
 
-  Widget buildReplyHeader(ColorScheme colorScheme) {
+  Widget buildReplyHeader() {
     final secondary = colorScheme.secondary;
     return SliverFloatingHeaderWidget(
       backgroundColor: colorScheme.surface,
@@ -199,7 +189,7 @@ class _MainReplyPageState extends State<MainReplyPage>
               icon: Icon(Icons.sort, size: 16, color: secondary),
               label: Obx(
                 () => Text(
-                  _controller.sortType.value.label,
+                  _controller.sortType.value.descShort,
                   style: TextStyle(fontSize: 13, color: secondary),
                 ),
               ),
@@ -210,41 +200,39 @@ class _MainReplyPageState extends State<MainReplyPage>
     );
   }
 
-  void replyReply(
-    BuildContext context,
-    ReplyInfo replyItem,
-    int? id,
-    ColorScheme colorScheme,
-  ) {
-    EasyThrottle.throttle('replyReply', const Duration(milliseconds: 500), () {
-      int oid = replyItem.oid.toInt();
-      int rpid = replyItem.id.toInt();
-      Get.to(
-        Scaffold(
-          resizeToAvoidBottomInset: false,
-          appBar: AppBar(
-            title: const Text('评论详情'),
-            shape: Border(
-              bottom: BorderSide(
-                color: colorScheme.outline.withValues(alpha: 0.1),
-              ),
+  void throttleReplyReply(ReplyInfo replyItem, int? id) {
+    EasyThrottle.throttle(
+      'replyReply',
+      const Duration(milliseconds: 500),
+      () => replyReply(replyItem, id),
+    );
+  }
+
+  void replyReply(ReplyInfo replyItem, int? id) {
+    Get.to(
+      SimpleScaffold(
+        appBar: AppBar(
+          title: const Text('评论详情'),
+          shape: Border(
+            bottom: BorderSide(
+              color: colorScheme.outline.withValues(alpha: 0.1),
             ),
           ),
-          body: ViewSafeArea(
-            child: VideoReplyReplyPanel(
-              enableSlide: false,
-              id: id,
-              oid: oid,
-              rpid: rpid,
-              isVideoDetail: false,
-              replyType: _controller.replyType,
-              firstFloor: replyItem,
-              upMid: _controller.upMid,
-            ),
-          ).constraintWidth(),
         ),
-        routeName: 'dynamicDetail-Copy',
-      );
-    });
+        body: ViewSafeArea(
+          child: VideoReplyReplyPanel(
+            enableSlide: false,
+            id: id,
+            oid: replyItem.oid.toInt(),
+            rpid: replyItem.id.toInt(),
+            isVideoDetail: false,
+            replyType: _controller.replyType,
+            firstFloor: replyItem,
+            upMid: _controller.upMid,
+          ),
+        ).constraintWidth(),
+      ),
+      routeName: 'dynamicDetail-Copy',
+    );
   }
 }

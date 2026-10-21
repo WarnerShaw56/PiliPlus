@@ -48,23 +48,6 @@ class TranslucentColumn extends Flex {
       spacing: spacing,
     );
   }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderTranslucentColumn renderObject,
-  ) {
-    renderObject
-      ..direction = direction
-      ..mainAxisAlignment = mainAxisAlignment
-      ..mainAxisSize = mainAxisSize
-      ..crossAxisAlignment = crossAxisAlignment
-      ..textDirection = getEffectiveTextDirection(context)
-      ..verticalDirection = verticalDirection
-      ..textBaseline = textBaseline
-      ..clipBehavior = clipBehavior
-      ..spacing = spacing;
-  }
 }
 
 class RenderTranslucentColumn extends RenderFlex {
@@ -99,9 +82,6 @@ class RenderTranslucentColumn extends RenderFlex {
             final hit = child.hitTest(result, position: transformed);
             if (child is RenderAnimatedHeight) {
               return hit;
-            }
-            if (hit) {
-              return true;
             }
             if (child is RenderNoTranslucentArea) {
               return false;
