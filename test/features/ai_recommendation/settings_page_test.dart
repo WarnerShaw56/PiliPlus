@@ -33,7 +33,9 @@ void main() {
     testWidgets('AI settings render and accept input in ${mode.name} mode', (
       tester,
     ) async {
-      await GStorage.setting.put(SettingBoxKey.aiRcmdMode, mode.name);
+      await tester.runAsync(
+        () => GStorage.setting.put(SettingBoxKey.aiRcmdMode, mode.name),
+      );
       tester.view.physicalSize = const Size(1280, 2000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
