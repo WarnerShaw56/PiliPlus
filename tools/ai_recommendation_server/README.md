@@ -1,5 +1,38 @@
 # PiliPlus AI recommendation generator
 
+## 已部署服务器与一键更新
+
+服务位于 `root@60.204.209.218`，SSH 使用本机 `~/.ssh/id_ed25519`。
+在仓库根目录运行（上传当前 HEAD 已提交的版本）：
+
+```powershell
+.\tools\ai_recommendation_server\deploy.ps1
+```
+
+脚本上传服务器代码，安装 Python 依赖，先运行生成器和接口检查，
+检查通过后更新代码、重启 API 并验证健康状态。首次安装服务器需要预装
+Python 3、venv、Nginx 和 curl；当前服务器已经准备完成。
+本机未提交的修改不进入部署包。脚本不会覆盖服务器现有密钥、偏好、历史或 TLS 配置。
+
+当前使用 `https://60.204.209.218` 的可信 IP 证书，无需域名。
+证书由 `/opt/acme/acme.sh` 管理，`piliplus-tls-renew.timer` 每 12 小时检查续期。
+`configure-ip-tls.sh` 是该实例的 TLS 配置辅助脚本，需要已经签发的证书。
+
+- `/opt/piliplus-ai/.env`：填写 BILI_COOKIE、AI_BASE_URL、AI_API_KEY、AI_MODEL。
+- `/var/lib/piliplus-ai/config.json`：偏好分组和筛选数量。
+- `/var/lib/piliplus-ai/feed-path`：私有 URL 路径，请勿提交或公开。
+- 客户端 JSON 地址：`https://60.204.209.218/ai/<feed-path 内容>/feed.json`。
+- 每天北京时间 07:30 后最多随机延迟 5 分钟生成，可用 `systemctl start piliplus-ai.service` 手动生成。
+- `systemctl status piliplus-ai-api` 检查 API；`journalctl -u piliplus-ai.service -n 100` 查看生成结果。
+
+GitHub 默认分支上的 `.github/workflows/ai-sync-build.yml` 每小时检查原作者 main，
+先合并到本仓库 main，再合并到 `agent/ai-daily-recommendations`，有新版本时编译
+Android 和 Windows，全部成功后发布 `ai-latest` Release。冲突会导致任务失败，保留现有代码。
+`SYNC_TOKEN` 必须有仓库内容及工作流写权限，失效时需更新。
+Android 使用固定的签名 secrets；本机备份在 `~/.ssh/piliplus-signing`，请妥善保留。
+GitHub 客户端构建与服务器部署独立，更新服务仍使用上面的一键命令。
+
+
 This trusted-server prototype generates the same backward-compatible
 `schema_version: 1` JSON that the PiliPlus client can also create locally. The
 phone downloads `feed.json` and manages preference groups through a private
