@@ -1,0 +1,140 @@
+name: Sync upstream and build AI edition
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [agent/ai-daily-recommendations]
+permissions:
+  contents: write
+concurrency:
+  group: ai-edition-release
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      sha: ${{ steps.sync.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/ai-daily-recommendations
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN || github.token }}
+      - id: sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          before=$(git rev-parse HEAD)
+          git remote add upstream https://github.com/bggRGjQaUbCoE/PiliPlus.git
+          git fetch upstream main
+          git fetch origin main
+          git checkout -B synced-main origin/main
+          git merge --no-edit upstream/main
+          git push origin HEAD:main
+          git checkout agent/ai-daily-recommendations
+          git merge --no-edit synced-main
+          git merge --no-edit upstream/main
+          # Keep the AI feature branch; never reset or force-push personal changes.
+          git push origin HEAD:agent/ai-daily-recommendations
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          released=$(gh api repos/$GITHUB_REPOSITORY/releases/tags/ai-latest --jq .body 2>/dev/null || true)
+          if [[ "$released" != *"$sha"* || "${{ github.event_name }}" == workflow_dispatch ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+  build:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: android
+          - os: windows-latest
+            platform: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: zulu
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: pubspec.yaml
+      - name: Configure Android signing
+        if: matrix.platform == 'android'
+        shell: bash
+        env:
+          KEY: ${{ secrets.SIGN_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEY" ]; then
+            printf '%s' "$KEY" | base64 -d > android/app/key.jks
+            printf 'storeFile=key.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > android/key.properties
+          else
+            echo "::warning::Signing secrets missing: APK uses temporary debug signing; subsequent builds may require reinstalling."
+          fi
+      - name: Prepare version
+        shell: pwsh
+        run: lib/scripts/build.ps1 ${{ matrix.platform }}
+      - name: Apply project patches
+        shell: pwsh
+        run: lib/scripts/patch.ps1 ${{ matrix.platform }}
+      - name: Build Android
+        if: matrix.platform == 'android'
+        run: flutter build apk --release --split-per-abi --dart-define-from-file=pili_release.json --no-pub
+      - name: Build Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          dart pub global activate fastforge
+          choco install innosetup -y
+          Copy-Item "windows/packaging/exe/ChineseSimplified.isl" "C:/Program Files (x86)/Inno Setup 6/Languages/ChineseSimplified.isl"
+          fastforge package --platform windows --targets exe --flutter-build-args="dart-define-from-file=pili_release.json,no-pub" --skip-clean
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath PiliPlus-windows-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ai-${{ matrix.platform }}
+          if-no-files-found: error
+          path: |
+            build/app/outputs/flutter-apk/*-release.apk
+            PiliPlus-windows-x64.zip
+            dist/**/*.exe
+  release:
+    needs: [sync, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ai-*
+          path: packages
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ai-latest
+          target_commitish: ${{ needs.sync.outputs.sha }}
+          name: PiliPlus AI edition
+          body: |
+            AI edition built from ${{ needs.sync.outputs.sha }}.
+            Android APK, Windows installer and portable ZIP.
+          files: |
+            packages/**/*.apk
+            packages/**/*.exe
+            packages/**/*.zip
+          fail_on_unmatched_files: true
+
