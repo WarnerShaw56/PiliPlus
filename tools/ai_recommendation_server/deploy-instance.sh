@@ -17,9 +17,10 @@ if ! test -s .env; then
 fi
 chown root:piliplus-ai .env
 chmod 640 .env
-chown -R piliplus-ai:piliplus-ai /var/lib/piliplus-ai /var/www/piliplus-ai
+chown -R piliplus-ai:piliplus-ai /var/lib/piliplus-ai
+chown -R piliplus-ai:www-data /var/www/piliplus-ai
 chmod 750 /var/lib/piliplus-ai
-chmod 755 /var/www/piliplus-ai
+chmod 2750 /var/www/piliplus-ai
 cp piliplus-ai*.service piliplus-ai.timer /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now piliplus-ai-api.service piliplus-ai.timer
