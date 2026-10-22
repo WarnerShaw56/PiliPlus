@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:PiliPlus/http/api.dart';
 import 'package:PiliPlus/http/init.dart';
+import 'package:PiliPlus/features/ai_recommendation/preferences.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/pages/common/common_controller.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
@@ -70,6 +71,10 @@ class HomeController extends GetxController
       this.tabs = tabs.map((i) => HomeTabType.values[i]).toList();
     } else {
       this.tabs = HomeTabType.values;
+    }
+    if (AiRecommendationPreferences.replacesHome &&
+        !this.tabs.contains(HomeTabType.rcmd)) {
+      this.tabs.insert(0, HomeTabType.rcmd);
     }
 
     tabController = TabController(

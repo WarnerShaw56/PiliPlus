@@ -1,0 +1,19 @@
+[Unit]
+Description=Generate PiliPlus AI recommendation feed
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=piliplus-ai
+Group=piliplus-ai
+WorkingDirectory=/opt/piliplus-ai
+EnvironmentFile=/opt/piliplus-ai/.env
+ExecStart=/opt/piliplus-ai/.venv/bin/python generate.py --config /var/lib/piliplus-ai/config.json --output /var/www/piliplus-ai/feed.json --history /var/lib/piliplus-ai/history.json --lock /var/lib/piliplus-ai/generation.lock
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/piliplus-ai /var/lib/piliplus-ai
+UMask=0027
+TimeoutStartSec=2h

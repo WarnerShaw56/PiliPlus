@@ -1,3 +1,6 @@
+import 'package:PiliPlus/features/ai_recommendation/group_settings_page.dart';
+import 'package:PiliPlus/features/ai_recommendation/recommendations_page.dart';
+import 'package:PiliPlus/features/ai_recommendation/settings_page.dart';
 import 'package:PiliPlus/pages/article/view.dart';
 import 'package:PiliPlus/pages/article_list/view.dart';
 import 'package:PiliPlus/pages/audio/view.dart';
@@ -83,6 +86,18 @@ class Routes {
     GetPage(name: '/webview', page: () => const WebviewPage()),
     // 设置
     GetPage(name: '/setting', page: () => const SettingPage()),
+    GetPage(
+      name: '/aiRecommendationSettings',
+      page: () => const AiRecommendationSettingsPage(),
+    ),
+    GetPage(
+      name: '/aiRecommendations',
+      page: () => const AiRecommendationsPage(),
+    ),
+    GetPage(
+      name: '/aiPreferenceGroups',
+      page: () => const AiPreferenceGroupsPage(),
+    ),
     //
     GetPage(name: '/fav', page: () => const FavPage()),
     //
