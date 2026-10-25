@@ -83,12 +83,14 @@ class _LivePageState extends State<LivePage>
       return LiveSliverPinnedHeader(
         areaHeight: areaHeight + 16 /* padding */,
         backgroundColor: colorScheme.surface,
+        callback: controller.onTopHeightChanged,
         child: Column(
           children: [..._buildFollowList(follow), area],
         ),
       );
     }
 
+    controller.onTopHeightChanged(0.0);
     return SliverPinnedHeader(
       backgroundColor: colorScheme.surface,
       child: area,
@@ -190,11 +192,14 @@ class _LivePageState extends State<LivePage>
 
   Widget _buildBody(LoadingState<List?> loadingState) {
     return switch (loadingState) {
-      Loading() => SliverGrid(
-        gridDelegate: gridDelegate,
-        delegate: const SliverSingleChildDelegate(
-          child: VideoCardVSkeleton(),
-          count: 10,
+      Loading() => SliverPadding(
+        padding: const .only(top: Style.cardSpace),
+        sliver: SliverGrid(
+          gridDelegate: gridDelegate,
+          delegate: const SliverSingleChildDelegate(
+            child: VideoCardVSkeleton(),
+            count: 10,
+          ),
         ),
       ),
       Success(:final response) => SliverMainAxisGroup(
